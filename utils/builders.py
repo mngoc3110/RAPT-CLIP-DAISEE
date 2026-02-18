@@ -64,8 +64,13 @@ def get_class_info(args: argparse.Namespace) -> Tuple[list, list]:
         class_names_with_context = class_names_with_context_caer
         class_descriptor = class_descriptor_caer
         ensemble_prompts = prompt_ensemble_caer
+    elif dataset_name == "DAiSEE":
+        class_names = class_names_daisee
+        class_names_with_context = class_names_with_context_daisee
+        class_descriptor = class_descriptor_daisee
+        ensemble_prompts = prompt_ensemble_daisee
     else:
-        raise NotImplementedError(f"Dataset '{dataset_name}' is not implemented. Only CAER-S is supported in this version.")
+        raise NotImplementedError(f"Dataset '{dataset_name}' is not implemented. Only CAER-S and DAiSEE are supported in this version.")
 
     if args.text_type == "class_names":
         input_text = class_names
@@ -153,5 +158,63 @@ def build_dataloaders(args: argparse.Namespace) -> Tuple[torch.utils.data.DataLo
         print(f"Total number of training images: {len(train_data)}")
         return train_loader, val_loader, test_loader
 
+    elif args.dataset.strip() == "DAiSEE":
+        print(f"=> Using DAiSEE specific dataloader...")
+        from dataloader.daisee_dataloader import DAiSEEDataset
+        
+        train_data = DAiSEEDataset(
+            root_dir=args.root_dir,
+            annotation_file=train_annotation_file_path,
+            mode='train',
+            num_segments=args.num_segments,
+            duration=args.duration,
+            image_size=args.image_size
+        )
+        
+        val_data = DAiSEEDataset(
+            root_dir=args.root_dir,
+            annotation_file=val_annotation_file_path,
+            mode='val',
+            num_segments=args.num_segments,
+            duration=args.duration,
+            image_size=args.image_size
+        )
+        
+        test_data = DAiSEEDataset(
+            root_dir=args.root_dir,
+            annotation_file=test_annotation_file_path,
+            mode='test',
+            num_segments=args.num_segments,
+            duration=args.duration,
+            image_size=args.image_size
+        )
+        
+        sampler = None
+        shuffle = True
+        if args.use_weighted_sampler:
+            print("=> Using WeightedRandomSampler for DAiSEE.")
+            targets = [s[1] for s in train_data.samples]
+            class_counts = torch.tensor([targets.count(i) for i in range(num_classes)])
+            class_counts = torch.where(class_counts == 0, torch.ones_like(class_counts), class_counts)
+            class_weights = 1. / class_counts.float()
+            sample_weights = [class_weights[t] for t in targets]
+            sampler = torch.utils.data.WeightedRandomSampler(sample_weights, len(sample_weights))
+            shuffle = False
+
+        train_loader = torch.utils.data.DataLoader(
+            train_data, batch_size=args.batch_size, shuffle=shuffle, sampler=sampler,
+            num_workers=args.workers, pin_memory=True, drop_last=True
+        )
+        val_loader = torch.utils.data.DataLoader(
+            val_data, batch_size=args.batch_size, shuffle=False,
+            num_workers=args.workers, pin_memory=True
+        )
+        test_loader = torch.utils.data.DataLoader(
+            test_data, batch_size=args.batch_size, shuffle=False,
+            num_workers=args.workers, pin_memory=True
+        )
+        print(f"Total number of training samples: {len(train_data)}")
+        return train_loader, val_loader, test_loader
+
     else:
-        raise NotImplementedError(f"Dataset {args.dataset} is not supported. Please use CAER-S.")
+        raise NotImplementedError(f"Dataset {args.dataset} is not supported. Please use CAER-S or DAiSEE.")
