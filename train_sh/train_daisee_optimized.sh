@@ -37,8 +37,8 @@ python3 main.py \
   --dataset DAiSEE \
   --gpu 0 \
   --epochs 30 \
-  --batch-size 16 \
-  --workers 4 \
+  --batch-size 8 \
+  --workers 2 \
   --optimizer AdamW \
   --lr 2e-5 \
   --lr-image-encoder 5e-7 \
@@ -48,7 +48,7 @@ python3 main.py \
   --scheduler cosine \
   --warmup-epochs 2 \
   --temporal-layers 2 \
-  --num-segments 16 \
+  --num-segments 8 \
   --duration 1 \
   --image-size 224 \
   --seed 42 \
