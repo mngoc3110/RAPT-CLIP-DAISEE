@@ -3,7 +3,12 @@ raer/
 CAER/
 CAER-S/
 CKPlus_Dataset/
-DAiSEE/
+# Ignore dataset video/frames but keep labels and scripts
+DAiSEE/DataSet/
+DAiSEE/GenderClips/
+!DAiSEE/Labels/
+!DAiSEE/*.py
+!DAiSEE/*.json
 Student_FER_Dataset/
 
 # Annotations (generated)
