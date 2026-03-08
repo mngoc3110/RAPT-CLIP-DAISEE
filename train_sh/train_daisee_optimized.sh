@@ -11,14 +11,17 @@
 #   6. epochs 40 → 30 → prevent late-stage overfitting
 # =============================================================================
 
-DATASET_ROOT="/content/DAiSEE_local"
+DATASET_ROOT="/kaggle/input/datasets/mngochocsupham/daisee/DAiSEE_data"
 ANN_DIR="${DATASET_ROOT}/Labels"
 
-# Fallback to Drive if local copy doesn't exist
+# Fallback to Colab Drive if Kaggle path doesn't exist
+if [ ! -d "$DATASET_ROOT" ]; then
+    DATASET_ROOT="/content/DAiSEE_local"
+    ANN_DIR="${DATASET_ROOT}/Labels"
+fi
 if [ ! -d "$DATASET_ROOT" ]; then
     DATASET_ROOT="/content/drive/MyDrive/RAPT-CLIP-DAISEE/DAiSEE"
     ANN_DIR="${DATASET_ROOT}/Labels"
-    echo "Using Drive path (slower): $DATASET_ROOT"
 fi
 
 echo "Starting DAiSEE v3 Anti-Overfitting Training..."
