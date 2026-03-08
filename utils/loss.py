@@ -203,3 +203,37 @@ class SemanticLDLLoss(nn.Module):
         # 4. KL Divergence Loss
         loss = self.kl_div(log_probs, soft_targets)
         return loss
+
+
+class OrdinalCELoss(nn.Module):
+    """Ordinal-aware Cross Entropy Loss for ordered classes.
+    
+    Engagement levels are ordinal: Low(0) < High(1) < Very High(2).
+    This loss creates soft labels weighted by ordinal distance:
+    - Nearby classes get more probability mass than distant ones
+    - Sigma controls how much mass leaks to neighbors (lower = sharper)
+    """
+    def __init__(self, num_classes=3, sigma=1.0):
+        super(OrdinalCELoss, self).__init__()
+        self.num_classes = num_classes
+        # Pre-compute soft label matrix using Gaussian kernel
+        # soft_labels[i][j] = exp(-|i-j|^2 / (2*sigma^2))
+        soft_labels = torch.zeros(num_classes, num_classes)
+        for i in range(num_classes):
+            for j in range(num_classes):
+                soft_labels[i][j] = np.exp(-((i - j) ** 2) / (2 * sigma ** 2))
+            soft_labels[i] = soft_labels[i] / soft_labels[i].sum()  # normalize
+        self.register_buffer('soft_labels', soft_labels)
+        print(f"OrdinalCELoss soft label matrix (sigma={sigma}):")
+        for i in range(num_classes):
+            print(f"  Class {i}: [{', '.join([f'{v:.3f}' for v in soft_labels[i]])}]")
+    
+    def forward(self, logits, targets):
+        # Get soft targets for this batch
+        device = logits.device
+        soft_targets = self.soft_labels.to(device)[targets]  # (B, C)
+        
+        # KL divergence with soft targets
+        log_probs = F.log_softmax(logits, dim=1)
+        loss = (-soft_targets * log_probs).sum(dim=1).mean()
+        return loss

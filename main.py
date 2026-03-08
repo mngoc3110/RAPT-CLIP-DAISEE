@@ -91,7 +91,7 @@ optim_group.add_argument('--use-random-erasing', action='store_true', help='Use 
 
 # --- Loss & Imbalance Handling ---
 loss_group = parser.add_argument_group('Loss & Imbalance Handling', 'Parameters for loss functions and imbalance handling')
-loss_group.add_argument('--loss-type', type=str, default='ce', choices=['ce', 'ldl', 'ldam', 'focal'], help='Type of primary classification loss (ce, ldl, ldam, focal).')
+loss_group.add_argument('--loss-type', type=str, default='ce', choices=['ce', 'ldl', 'ldam', 'focal', 'ordinal_ce'], help='Type of primary classification loss.')
 loss_group.add_argument('--focal-gamma', type=float, default=2.0, help='Gamma for focal loss.')
 loss_group.add_argument('--lambda_mi', type=float, default=0.1, help='Weight for the Mutual Information loss.')
 loss_group.add_argument('--lambda_dc', type=float, default=0.1, help='Weight for the Decorrelation loss.')
@@ -270,6 +270,11 @@ def run_training(args: argparse.Namespace) -> None:
         else:
             print("=> Error: cls_num_list is empty/zero. Cannot use LDAM. Falling back to CrossEntropy.")
             criterion = nn.CrossEntropyLoss().to(args.device)
+    elif args.loss_type == 'ordinal_ce':
+        from utils.loss import OrdinalCELoss
+        num_classes = len(cls_num_list) if cls_num_list else 3
+        print(f"=> Using Ordinal CE Loss (sigma=1.0, {num_classes} classes)")
+        criterion = OrdinalCELoss(num_classes=num_classes, sigma=1.0).to(args.device)
     elif args.label_smoothing > 0:
         criterion = LSR2(e=args.label_smoothing, label_mode='class_descriptor').to(args.device)
     else:
