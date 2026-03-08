@@ -358,41 +358,41 @@ class_descriptor_daisee = [
 ]
 
 prompt_ensemble_daisee = [
-    [ # Very Low (0)
-        "A video of a student with eyes closed, sleeping or dozing off during an online lesson.",
-        "A student looking completely away from the screen with no interest in the content.",
-        "A completely disengaged student with head down on the desk, ignoring the lesson.",
-        "A student looking down at their phone or doing something entirely unrelated to the class.",
-        "A student with a blank disconnected stare, showing zero attention to the screen.",
-        "A student who has turned away from the camera, appearing to have given up on the lesson entirely.",
-        "A student with closed eyes and a slumped posture, completely checked out of the online session."
+    [ # Very Low Engagement (0) — Focus: eyes closed, no eye contact, complete disengagement
+        "A close-up of a student's face with eyes fully closed, appearing to be asleep during class.",
+        "A student's face turned completely away from the camera, showing no engagement at all.",
+        "A face with heavy drooping eyelids and a slack jaw, dozing off in front of the screen.",
+        "A student's face looking downward with eyes hidden, ignoring the online lesson entirely.",
+        "A close-up showing a face with no eye contact, mouth slightly open, completely zoned out.",
+        "A student with their eyes shut and head tilted, having fallen asleep during the lecture.",
+        "A face showing absolutely no awareness of the camera, eyes averted or closed, fully disengaged."
     ],
-    [ # Low (1)
-        "A video of a bored student yawning or resting their chin on their hand during class.",
-        "A student frequently glancing around the room instead of watching the screen.",
-        "A student fidgeting, shifting in their seat, showing signs of restlessness and boredom.",
-        "A student with a blank unfocused stare, gazing past the screen without registering content.",
-        "A student slouching with drooping eyelids, struggling to stay awake during the lesson.",
-        "A student absently playing with their hair or objects on the desk while half-watching the screen.",
-        "A student with a tired expression, occasionally looking at the screen but showing minimal interest."
+    [ # Low Engagement (1) — Focus: unfocused eyes, wandering gaze, bored expression
+        "A close-up of a student's face with an unfocused bored expression, eyes half-open.",
+        "A student's face with eyes wandering around instead of looking at the screen.",
+        "A face showing a tired yawning expression with droopy eyes during an online class.",
+        "A student with a distracted look, eyes glancing to the side rather than at the camera.",
+        "A close-up of a bored face with a blank stare, showing minimal interest in the lesson.",
+        "A student's face with heavy eyelids and a disinterested frown, barely paying attention.",
+        "A face with an absent-minded expression, eyes drifting away from the screen repeatedly."
     ],
-    [ # High (2)
-        "A video of a student looking directly at the screen with a calm attentive expression.",
-        "A student paying attention to the lesson with steady eye contact toward the camera.",
-        "A student watching the online class quietly with a focused and neutral face.",
-        "A student sitting upright and facing the screen, maintaining consistent attention.",
-        "A student calmly following the lecture content with relaxed but focused eyes.",
-        "A student with a composed posture and eyes fixed on the screen, steadily absorbing the material.",
-        "A student silently watching the lesson with an attentive and patient demeanor."
+    [ # High Engagement (2) — Focus: steady gaze, neutral-calm expression, attentive eyes
+        "A close-up of a student's face looking directly at the screen with calm focused eyes.",
+        "A student's face with steady eye contact toward the camera and a neutral attentive expression.",
+        "A face showing quiet concentration with relaxed features and eyes fixed ahead.",
+        "A student with clear open eyes watching the screen attentively with a composed expression.",
+        "A close-up of a face with a focused neutral gaze, paying attention to the online lesson.",
+        "A student's face with relaxed brow and steady eyes, quietly absorbing the lecture content.",
+        "A face showing sustained attention with gentle focused eyes and a calm mouth."
     ],
-    [ # Very High (3)
-        "A video of a student leaning forward with keen interest in the lesson content.",
-        "A highly engaged student with wide eyes and an intensely focused gaze at the screen.",
-        "A student nodding along or reacting visibly to the content being taught.",
-        "A student showing intense concentration with slightly furrowed brows and full attention.",
-        "A student actively engaged, with an alert posture and eyes tracking the content closely.",
-        "A student smiling or showing expressions of curiosity and excitement about the lesson material.",
-        "A student with animated facial expressions, deeply absorbed in what is being presented on screen."
+    [ # Very High Engagement (3) — Focus: wide alert eyes, expressive face, active facial response
+        "A close-up of a student's face with wide alert eyes showing intense focus and interest.",
+        "A student's face with raised eyebrows and bright eyes, deeply engaged in the lesson.",
+        "A face showing an animated expression of curiosity with widened eyes and a slight smile.",
+        "A student with slightly furrowed brows and intensely concentrated eyes fixed on the screen.",
+        "A close-up of an excited face reacting to content with expressive eyes and an open expression.",
+        "A student's face showing visible intellectual engagement with alert widened eyes and a nod.",
+        "A face with a bright eager expression, eyes sparkling with interest in the lesson material."
     ]
 ]
 
