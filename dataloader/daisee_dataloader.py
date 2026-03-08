@@ -27,7 +27,6 @@ class DAiSEEDataset(data.Dataset):
         
         self.samples = self._make_dataset()
         
-        # Group transforms for face stream
         if mode == 'train':
             self.group_transform = transforms.Compose([
                 GroupResize(image_size),
@@ -41,13 +40,6 @@ class DAiSEEDataset(data.Dataset):
                 Stack(),
                 ToTorchFormatTensor(),
             ])
-        
-        # Motion stream only needs resize + stack (no flip — motion direction matters)
-        self.motion_transform = transforms.Compose([
-            GroupResize(image_size),
-            Stack(),
-            ToTorchFormatTensor(),
-        ])
 
     def _make_dataset(self):
         samples = []
@@ -103,8 +95,8 @@ class DAiSEEDataset(data.Dataset):
                 offsets = np.pad(np.array(list(range(num_frames))), (0, self.num_segments - num_frames), "edge")
         return offsets
 
-    def _center_crop_face(self, img_pil, crop_ratio=0.4):
-        """Tighter crop to focus on face (40% of frame)."""
+    def _center_crop_face(self, img_pil, crop_ratio=0.5):
+        """Crop center 50% of frame to focus on face area."""
         w, h = img_pil.size
         crop_w = int(w * crop_ratio)
         crop_h = int(h * crop_ratio)
@@ -112,33 +104,15 @@ class DAiSEEDataset(data.Dataset):
         top = (h - crop_h) // 2
         return img_pil.crop((left, top, left + crop_w, top + crop_h))
 
-    def _compute_motion_frames(self, pil_images):
-        """Compute temporal difference (motion) between consecutive frames.
-        Returns list of PIL images showing motion intensity."""
-        motion_frames = []
-        for i in range(len(pil_images)):
-            if i == 0:
-                # First frame: diff with itself = gray image
-                motion_frames.append(Image.new('RGB', pil_images[0].size, (128, 128, 128)))
-            else:
-                # Convert to numpy, compute absolute difference
-                curr = np.array(pil_images[i]).astype(np.float32)
-                prev = np.array(pil_images[i-1]).astype(np.float32)
-                diff = np.abs(curr - prev)
-                # Amplify motion signal (x3) and clip to 0-255
-                diff = np.clip(diff * 3.0, 0, 255).astype(np.uint8)
-                motion_frames.append(Image.fromarray(diff))
-        return motion_frames
-
     def _load_frames_from_video(self, video_path, indices):
         """Read specific frames from video file."""
-        raw_images = []
+        face_images = []
+        body_images = []
         cap = cv2.VideoCapture(video_path)
         if not cap.isOpened():
-            return [], []
+            return face_images, body_images
         
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        
         for seg_ind in indices:
             p = min(int(seg_ind), total_frames - 1)
             for _ in range(self.duration):
@@ -146,17 +120,17 @@ class DAiSEEDataset(data.Dataset):
                 ret, frame = cap.read()
                 if ret and frame is not None:
                     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    raw_images.append(Image.fromarray(frame_rgb))
+                    img_pil = Image.fromarray(frame_rgb)
+                    face_images.append(self._center_crop_face(img_pil, 0.5))
+                    body_images.append(self._center_crop_face(img_pil, 0.5))  # Same crop — model paths differ
                 else:
-                    raw_images.append(Image.new('RGB', (self.image_size, self.image_size)))
+                    blank = Image.new('RGB', (self.image_size, self.image_size))
+                    face_images.append(blank)
+                    body_images.append(blank)
                 if p < total_frames - 1:
                     p += 1
         cap.release()
-        
-        # Create face crops and motion frames from raw images
-        face_images = [self._center_crop_face(img, 0.4) for img in raw_images]
-        motion_images = self._compute_motion_frames(raw_images)
-        return face_images, motion_images
+        return face_images, body_images
 
     def __getitem__(self, index):
         clip_dir, label, clip_id_ext = self.samples[index]
@@ -197,57 +171,56 @@ class DAiSEEDataset(data.Dataset):
             label
         )
         
+        face_images = []
+        body_images = []
+        
         if source_type == 'frames':
             _, frames_path, frame_files = cache_entry
             num_frames = len(frame_files)
             if num_frames <= 0:
                 return blank_return
-            
             indices = self._get_indices(num_frames)
-            raw_images = []
             for seg_ind in indices:
                 p = min(int(seg_ind), num_frames - 1)
                 for _ in range(self.duration):
                     try:
                         img_pil = Image.open(os.path.join(frames_path, frame_files[p])).convert('RGB')
-                        raw_images.append(img_pil)
+                        face_images.append(self._center_crop_face(img_pil, 0.5))
+                        body_images.append(self._center_crop_face(img_pil, 0.5))  # Same crop
                     except:
-                        raw_images.append(Image.new('RGB', (self.image_size, self.image_size)))
+                        blank = Image.new('RGB', (self.image_size, self.image_size))
+                        face_images.append(blank)
+                        body_images.append(blank)
                     if p < num_frames - 1:
                         p += 1
-            
-            face_images = [self._center_crop_face(img, 0.4) for img in raw_images]
-            motion_images = self._compute_motion_frames(raw_images)
                         
         elif source_type == 'video':
             _, video_path, num_frames = cache_entry
             if num_frames <= 0:
                 return blank_return
             indices = self._get_indices(num_frames)
-            face_images, motion_images = self._load_frames_from_video(video_path, indices)
+            face_images, body_images = self._load_frames_from_video(video_path, indices)
         else:
             return blank_return
         
         if not face_images:
             return blank_return
 
-        # Apply transforms
-        process_face = self.group_transform(face_images)       # Face: with augmentation
-        process_motion = self.motion_transform(motion_images)  # Motion: no flip
+        # Apply same group transforms to both streams
+        process_face = self.group_transform(face_images)
+        process_body = self.group_transform(body_images)
         
         # Reshape to [T, 3, H, W]
         process_face = process_face.view(-1, 3, self.image_size, self.image_size)
-        process_motion = process_motion.view(-1, 3, self.image_size, self.image_size)
+        process_body = process_body.view(-1, 3, self.image_size, self.image_size)
         
-        # CLIP normalization for face stream
+        # CLIP normalization - vectorized
         mean = torch.tensor(CLIP_MEAN).view(1, 3, 1, 1)
         std = torch.tensor(CLIP_STD).view(1, 3, 1, 1)
         process_face = (process_face - mean) / std
+        process_body = (process_body - mean) / std
         
-        # Simple normalization for motion stream (0-1 range, then standard norm)
-        process_motion = (process_motion - 0.5) / 0.5  # Scale to [-1, 1]
-        
-        return process_face, process_motion, label
+        return process_face, process_body, label
 
     def __len__(self):
         return len(self.samples)
