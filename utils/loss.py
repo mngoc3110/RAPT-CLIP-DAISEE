@@ -6,6 +6,23 @@ from torch.distributions import normal
 import numpy as np
 
 
+class FocalLoss(nn.Module):
+    """Focal Loss - focuses on hard samples automatically."""
+    def __init__(self, gamma=2.0, weight=None, label_smoothing=0.0):
+        super(FocalLoss, self).__init__()
+        self.gamma = gamma
+        self.weight = weight
+        self.label_smoothing = label_smoothing
+
+    def forward(self, input, target):
+        ce_loss = F.cross_entropy(input, target, weight=self.weight, 
+                                   label_smoothing=self.label_smoothing, reduction='none')
+        pt = torch.exp(-ce_loss)
+        focal_loss = ((1 - pt) ** self.gamma) * ce_loss
+        return focal_loss.mean()
+
+
+
 class DCLoss(nn.Module):
     def __init__(self):
         super(DCLoss, self).__init__()

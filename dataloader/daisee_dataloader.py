@@ -72,6 +72,9 @@ class DAiSEEDataset(data.Dataset):
             clip_id = os.path.splitext(clip_id_ext)[0]
             subject_id = clip_id[:6]
             label = int(row[self.label_col])
+            # Merge to 3 classes: VeryLow(0)+Low(1) → 0, High(2) → 1, VeryHigh(3) → 2
+            label_map = {0: 0, 1: 0, 2: 1, 3: 2}
+            label = label_map[label]
             clip_dir = os.path.join(self.root_dir, 'DataSet', split_dir, subject_id, clip_id)
             samples.append((clip_dir, label, clip_id_ext))
 

@@ -91,7 +91,8 @@ optim_group.add_argument('--use-random-erasing', action='store_true', help='Use 
 
 # --- Loss & Imbalance Handling ---
 loss_group = parser.add_argument_group('Loss & Imbalance Handling', 'Parameters for loss functions and imbalance handling')
-loss_group.add_argument('--loss-type', type=str, default='ce', choices=['ce', 'ldl', 'ldam'], help='Type of primary classification loss (ce, ldl, ldam).')
+loss_group.add_argument('--loss-type', type=str, default='ce', choices=['ce', 'ldl', 'ldam', 'focal'], help='Type of primary classification loss (ce, ldl, ldam, focal).')
+loss_group.add_argument('--focal-gamma', type=float, default=2.0, help='Gamma for focal loss.')
 loss_group.add_argument('--lambda_mi', type=float, default=0.1, help='Weight for the Mutual Information loss.')
 loss_group.add_argument('--lambda_dc', type=float, default=0.1, help='Weight for the Decorrelation loss.')
 loss_group.add_argument('--mi-warmup', type=int, default=5, help='Warmup epochs for MI loss.')
@@ -250,6 +251,18 @@ def run_training(args: argparse.Namespace) -> None:
     if args.use_ldl:
         print(f"=> Using SemanticLDLLoss (LDL) with temperature {args.ldl_temperature}")
         criterion = SemanticLDLLoss(temperature=args.ldl_temperature).to(args.device)
+    elif args.loss_type == 'focal':
+        # Compute class weights from distribution
+        if sum(cls_num_list) > 0:
+            total = sum(cls_num_list)
+            cls_weights = torch.FloatTensor([total / (len(cls_num_list) * c + 1e-6) for c in cls_num_list])
+            cls_weights = cls_weights / cls_weights.sum() * len(cls_num_list)  # Normalize
+        else:
+            cls_weights = None
+        gamma = getattr(args, 'focal_gamma', 2.0)
+        print(f"=> Using Focal Loss with gamma={gamma}, weights={cls_weights}")
+        criterion = FocalLoss(gamma=gamma, weight=cls_weights.to(args.device) if cls_weights is not None else None,
+                              label_smoothing=args.label_smoothing).to(args.device)
     elif args.loss_type == 'ldam':
         if sum(cls_num_list) > 0:
             print(f"=> Using LDAM Loss with s={args.ldam_s}, max_m={args.ldam_max_m}")

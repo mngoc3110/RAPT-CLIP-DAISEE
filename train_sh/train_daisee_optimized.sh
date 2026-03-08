@@ -1,14 +1,14 @@
 #!/bin/bash
 
 # =============================================================================
-# Script Huấn Luyện DAiSEE v4 - Balanced
-# Key changes:
-#   - Face = center 50% crop, Body = full frame (CLIP understands natural images)
-#   - lr-image-encoder = 5e-7 (slight fine-tune, not frozen)
-#   - label-smoothing 0.1 (keep, reduces overconfidence)
-#   - mixup 0.0 (removed — was hurting convergence)
-#   - temperature 0.07 (back to original, sharper separation)
-#   - lr 2e-5, lr-prompt-learner 2e-4 (back to v2 levels)
+# Script Huấn Luyện DAiSEE v5 — 3 Classes + LDAM (RAPT-CLIP architecture)
+# Changes vs v4:
+#   1. Merged Very Low + Low → "Low" (3 classes: Low, High, Very High)
+#   2. LDAM Loss preserved (RAPT-CLIP original architecture)
+#   3. REMOVED WeightedRandomSampler — no train/val distribution mismatch
+#   4. Face-focused prompts (close-up cues only)
+#   5. lr-image-encoder = 5e-7 (slight fine-tune)
+#   6. warmup-epochs = 2
 # =============================================================================
 
 DATASET_ROOT="/kaggle/input/datasets/mngochocsupham/daisee/DAiSEE_data"
@@ -23,17 +23,17 @@ if [ ! -d "$DATASET_ROOT" ]; then
     ANN_DIR="${DATASET_ROOT}/Labels"
 fi
 
-echo "Starting DAiSEE v4 Balanced Training..."
+echo "Starting DAiSEE v5 (3-Class + LDAM) Training..."
 echo "Dataset Root: $DATASET_ROOT"
 
 if [ ! -f "$ANN_DIR/TrainLabels.csv" ]; then
-    echo "LỖI: Không tìm thấy file nhãn tại $ANN_DIR/TrainLabels.csv"
+    echo "ERROR: Label file not found at $ANN_DIR/TrainLabels.csv"
     exit 1
 fi
 
 python3 main.py \
   --mode train \
-  --exper-name DAiSEE_v4_Balanced \
+  --exper-name DAiSEE_v5_3Class \
   --dataset DAiSEE \
   --gpu 0 \
   --epochs 30 \
@@ -66,15 +66,14 @@ python3 main.py \
   --loss-type ldam \
   --ldam-max-m 0.5 \
   --ldam-s 1.0 \
+  --label-smoothing 0.1 \
   --lambda_mi 0.1 \
   --lambda_dc 0.1 \
   --mi-warmup 3 \
   --mi-ramp 7 \
   --dc-warmup 3 \
   --dc-ramp 7 \
-  --label-smoothing 0.1 \
   --mixup-alpha 0.0 \
-  --use-weighted-sampler \
   --use-amp \
   --grad-clip 1.0
 

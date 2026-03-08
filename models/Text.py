@@ -341,42 +341,31 @@ prompt_ensemble_caer = [
     ]
 ]
 
-class_names_daisee = ['Very Low', 'Low', 'High', 'Very High']
+class_names_daisee = ['Low', 'High', 'Very High']
 
 class_names_with_context_daisee = [
-    "A student shows very low engagement during an online class.",
     "A student shows low engagement during an online class.",
     "A student shows high engagement during an online class.",
     "A student shows very high engagement during an online class."
 ]
 
 class_descriptor_daisee = [
-    "A student is completely disengaged: eyes closed or looking away from screen, head down on desk, no reaction to the lesson content.",
-    "A student is passively present but distracted: occasional glances away, fidgeting, yawning, resting chin on hand, minimal focus on screen.",
-    "A student is attentively watching the screen with a calm and neutral expression, sitting upright, eyes focused on the lesson content.",
-    "A student is highly engaged and actively participating: leaning forward, eyes wide open and tracking content, nodding, showing concentration and interest."
+    "A student is disengaged or distracted: eyes closed, looking away, unfocused stare, yawning, droopy eyelids, or showing no interest in the screen.",
+    "A student is attentively watching the screen with a calm and neutral expression, eyes focused on the lesson content.",
+    "A student is highly engaged: eyes wide open tracking content, showing concentration, curiosity, and active interest in the lesson."
 ]
 
 prompt_ensemble_daisee = [
-    [ # Very Low Engagement (0) — Focus: eyes closed, no eye contact, complete disengagement
+    [ # Low Engagement (0) = merged Very Low + Low
         "A close-up of a student's face with eyes fully closed, appearing to be asleep during class.",
-        "A student's face turned completely away from the camera, showing no engagement at all.",
         "A face with heavy drooping eyelids and a slack jaw, dozing off in front of the screen.",
-        "A student's face looking downward with eyes hidden, ignoring the online lesson entirely.",
-        "A close-up showing a face with no eye contact, mouth slightly open, completely zoned out.",
-        "A student with their eyes shut and head tilted, having fallen asleep during the lecture.",
-        "A face showing absolutely no awareness of the camera, eyes averted or closed, fully disengaged."
-    ],
-    [ # Low Engagement (1) — Focus: unfocused eyes, wandering gaze, bored expression
         "A close-up of a student's face with an unfocused bored expression, eyes half-open.",
         "A student's face with eyes wandering around instead of looking at the screen.",
         "A face showing a tired yawning expression with droopy eyes during an online class.",
         "A student with a distracted look, eyes glancing to the side rather than at the camera.",
-        "A close-up of a bored face with a blank stare, showing minimal interest in the lesson.",
-        "A student's face with heavy eyelids and a disinterested frown, barely paying attention.",
-        "A face with an absent-minded expression, eyes drifting away from the screen repeatedly."
+        "A close-up showing a face with no eye contact, completely zoned out or barely paying attention."
     ],
-    [ # High Engagement (2) — Focus: steady gaze, neutral-calm expression, attentive eyes
+    [ # High Engagement (1)
         "A close-up of a student's face looking directly at the screen with calm focused eyes.",
         "A student's face with steady eye contact toward the camera and a neutral attentive expression.",
         "A face showing quiet concentration with relaxed features and eyes fixed ahead.",
@@ -385,7 +374,7 @@ prompt_ensemble_daisee = [
         "A student's face with relaxed brow and steady eyes, quietly absorbing the lecture content.",
         "A face showing sustained attention with gentle focused eyes and a calm mouth."
     ],
-    [ # Very High Engagement (3) — Focus: wide alert eyes, expressive face, active facial response
+    [ # Very High Engagement (2)
         "A close-up of a student's face with wide alert eyes showing intense focus and interest.",
         "A student's face with raised eyebrows and bright eyes, deeply engaged in the lesson.",
         "A face showing an animated expression of curiosity with widened eyes and a slight smile.",
@@ -395,4 +384,5 @@ prompt_ensemble_daisee = [
         "A face with a bright eager expression, eyes sparkling with interest in the lesson material."
     ]
 ]
+
 
