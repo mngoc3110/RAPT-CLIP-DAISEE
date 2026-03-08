@@ -308,3 +308,49 @@ class Trainer:
         res = self._run_one_epoch(val_loader, epoch_num_str, is_train=False)
         torch.cuda.empty_cache()
         return res
+
+    def validate_with_tta(self, val_loader, epoch_num_str="Final"):
+        """TTA: average predictions from original + horizontally flipped inputs."""
+        self.model.eval()
+        all_logits_orig = []
+        all_logits_flip = []
+        all_targets = []
+        
+        with torch.no_grad():
+            for images_face, images_body, target in tqdm(val_loader, desc=f"TTA Epoch {epoch_num_str}"):
+                images_face = images_face.to(self.device)
+                images_body = images_body.to(self.device)
+                target = target.to(self.device)
+                
+                with torch.cuda.amp.autocast(enabled=self.use_amp):
+                    # Original
+                    output_orig, _, _, _ = self.model(images_face, images_body)
+                    # Horizontal flip
+                    output_flip, _, _, _ = self.model(
+                        torch.flip(images_face, dims=[-1]),
+                        torch.flip(images_body, dims=[-1])
+                    )
+                
+                all_logits_orig.append(output_orig.cpu())
+                all_logits_flip.append(output_flip.cpu())
+                all_targets.append(target.cpu())
+        
+        # Average logits
+        logits_orig = torch.cat(all_logits_orig)
+        logits_flip = torch.cat(all_logits_flip)
+        targets = torch.cat(all_targets)
+        
+        avg_logits = (logits_orig + logits_flip) / 2.0
+        preds = avg_logits.argmax(dim=1)
+        
+        # Metrics
+        cm = confusion_matrix(targets.numpy(), preds.numpy())
+        war = (preds.eq(targets).sum().item() / targets.size(0)) * 100.0
+        class_acc = cm.diagonal() / (cm.sum(axis=1) + 1e-6)
+        uar = np.nanmean(class_acc) * 100
+        
+        print(f"\n[TTA] WAR: {war:.2f}% | UAR: {uar:.2f}%")
+        print(f"[TTA] Confusion Matrix:\n{cm}")
+        
+        torch.cuda.empty_cache()
+        return war, uar, 0.0, cm

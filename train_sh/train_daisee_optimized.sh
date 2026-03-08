@@ -1,14 +1,15 @@
 #!/bin/bash
 
 # =============================================================================
-# Script Huấn Luyện DAiSEE v6 — Aggressive UAR Push
-# Changes vs v5:
-#   1. Multi-scale: Face=40% crop, Body=75% crop (2 streams khác nhau)
-#   2. ldam-s = 3.0 (stronger gradient signal, was 1.0)
-#   3. lr-image-encoder = 2e-6 (allow more backbone adaptation)
-#   4. label-smoothing = 0.0 (sharper class boundaries)
-#   5. num-segments = 16 (more temporal info, if RAM allows)
-#   6. weight-decay = 0.01 (less regularization)
+# Script Huấn Luyện DAiSEE v6 — Optimize for Accuracy (WAR)
+# Strategy: Match SOTA evaluation metric (accuracy, not UAR)
+# Changes:
+#   1. NO WeightedSampler — natural distribution → accuracy
+#   2. Multi-scale: Face=40% crop, Body=75% crop
+#   3. ldam-s = 3.0 (stronger gradient)
+#   4. lr-image-encoder = 2e-6 (backbone adaptation)
+#   5. TTA (flip averaging) built into validation
+#   6. is_best = val_war (accuracy) not val_uar
 # =============================================================================
 
 DATASET_ROOT="/kaggle/input/datasets/mngochocsupham/daisee/DAiSEE_data"
@@ -23,7 +24,7 @@ if [ ! -d "$DATASET_ROOT" ]; then
     ANN_DIR="${DATASET_ROOT}/Labels"
 fi
 
-echo "Starting DAiSEE v6 (Aggressive UAR Push) Training..."
+echo "Starting DAiSEE v6 (Accuracy Optimized) Training..."
 echo "Dataset Root: $DATASET_ROOT"
 
 if [ ! -f "$ANN_DIR/TrainLabels.csv" ]; then
@@ -33,7 +34,7 @@ fi
 
 python3 main.py \
   --mode train \
-  --exper-name DAiSEE_v6_Push60 \
+  --exper-name DAiSEE_v6_ACC \
   --dataset DAiSEE \
   --gpu 0 \
   --epochs 30 \
@@ -48,7 +49,7 @@ python3 main.py \
   --scheduler cosine \
   --warmup-epochs 2 \
   --temporal-layers 2 \
-  --num-segments 16 \
+  --num-segments 8 \
   --duration 1 \
   --image-size 224 \
   --seed 42 \
@@ -74,7 +75,6 @@ python3 main.py \
   --dc-warmup 3 \
   --dc-ramp 7 \
   --mixup-alpha 0.0 \
-  --use-weighted-sampler \
   --use-amp \
   --grad-clip 1.0
 

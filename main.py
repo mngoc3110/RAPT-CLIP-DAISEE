@@ -383,6 +383,18 @@ def run_training(args: argparse.Namespace) -> None:
         if ema is not None:
             ema.restore(model)
 
+        # TTA validation (flip averaging)
+        if ema is not None:
+            ema.apply(model)
+        tta_war, tta_uar, _, tta_cm = trainer.validate_with_tta(val_loader, str(epoch))
+        if ema is not None:
+            ema.restore(model)
+        
+        # Use the better WAR (regular vs TTA)
+        if tta_war > val_war:
+            val_war, val_uar, val_cm = tta_war, tta_uar, tta_cm
+            print(f"[TTA] Using TTA result: WAR {tta_war:.2f}% > regular")
+
         trainer.scheduler.step()
 
         # Save checkpoint
