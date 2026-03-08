@@ -124,8 +124,8 @@ class DAiSEEDataset(data.Dataset):
                 if ret and frame is not None:
                     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                     img_pil = Image.fromarray(frame_rgb)
-                    face_images.append(self._center_crop_face(img_pil, 0.5))
-                    body_images.append(self._center_crop_face(img_pil, 0.5))  # Same crop — model paths differ
+                    face_images.append(self._center_crop_face(img_pil, 0.4))  # Tight: eyes, mouth
+                    body_images.append(self._center_crop_face(img_pil, 0.75))  # Wide: head, shoulders
                 else:
                     blank = Image.new('RGB', (self.image_size, self.image_size))
                     face_images.append(blank)
@@ -188,8 +188,8 @@ class DAiSEEDataset(data.Dataset):
                 for _ in range(self.duration):
                     try:
                         img_pil = Image.open(os.path.join(frames_path, frame_files[p])).convert('RGB')
-                        face_images.append(self._center_crop_face(img_pil, 0.5))
-                        body_images.append(self._center_crop_face(img_pil, 0.5))  # Same crop
+                        face_images.append(self._center_crop_face(img_pil, 0.4))  # Tight: eyes, mouth
+                        body_images.append(self._center_crop_face(img_pil, 0.75))  # Wide: head, shoulders
                     except:
                         blank = Image.new('RGB', (self.image_size, self.image_size))
                         face_images.append(blank)
