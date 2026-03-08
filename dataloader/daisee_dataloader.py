@@ -28,12 +28,12 @@ class DAiSEEDataset(data.Dataset):
         self.samples = self._make_dataset()
         
         if mode == 'train':
+            self._color_jitter = transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.2)
             self.group_transform = transforms.Compose([
                 GroupResize(image_size),
                 GroupRandomHorizontalFlip(),
                 Stack(),
                 ToTorchFormatTensor(),
-                transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.2),
             ])
         else:
             self.group_transform = transforms.Compose([
@@ -224,6 +224,11 @@ class DAiSEEDataset(data.Dataset):
         
         if not face_images:
             return blank_return
+
+        # Apply per-frame ColorJitter during training (before Stack)
+        if self.mode == 'train' and hasattr(self, '_color_jitter'):
+            face_images = [self._color_jitter(img) for img in face_images]
+            body_images = [self._color_jitter(img) for img in body_images]
 
         # Apply same group transforms to both streams
         process_face = self.group_transform(face_images)
