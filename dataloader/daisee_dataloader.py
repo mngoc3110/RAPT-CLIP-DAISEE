@@ -33,6 +33,7 @@ class DAiSEEDataset(data.Dataset):
                 GroupRandomHorizontalFlip(),
                 Stack(),
                 ToTorchFormatTensor(),
+                transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.2),
             ])
         else:
             self.group_transform = transforms.Compose([
@@ -99,12 +100,27 @@ class DAiSEEDataset(data.Dataset):
         return offsets
 
     def _center_crop_face(self, img_pil, crop_ratio=0.5):
-        """Crop center 50% of frame to focus on face area."""
+        """Crop center of frame to focus on face area. Adds random jitter during training."""
         w, h = img_pil.size
         crop_w = int(w * crop_ratio)
         crop_h = int(h * crop_ratio)
-        left = (w - crop_w) // 2
-        top = (h - crop_h) // 2
+        
+        if self.mode == 'train':
+            # Random jitter: ±15% offset from center
+            max_jitter_x = int(w * 0.15)
+            max_jitter_y = int(h * 0.15)
+            jitter_x = random.randint(-max_jitter_x, max_jitter_x)
+            jitter_y = random.randint(-max_jitter_y, max_jitter_y)
+            # Random scale: 90-110% of crop_ratio
+            scale = random.uniform(0.9, 1.1)
+            crop_w = min(int(crop_w * scale), w)
+            crop_h = min(int(crop_h * scale), h)
+            left = max(0, min((w - crop_w) // 2 + jitter_x, w - crop_w))
+            top = max(0, min((h - crop_h) // 2 + jitter_y, h - crop_h))
+        else:
+            left = (w - crop_w) // 2
+            top = (h - crop_h) // 2
+        
         return img_pil.crop((left, top, left + crop_w, top + crop_h))
 
     def _load_frames_from_video(self, video_path, indices):
