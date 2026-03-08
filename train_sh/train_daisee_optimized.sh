@@ -1,14 +1,14 @@
 #!/bin/bash
 
 # =============================================================================
-# Script Huấn Luyện DAiSEE v5 — 3 Classes + LDAM (RAPT-CLIP architecture)
-# Changes vs v4:
-#   1. Merged Very Low + Low → "Low" (3 classes: Low, High, Very High)
-#   2. LDAM Loss preserved (RAPT-CLIP original architecture)
-#   3. REMOVED WeightedRandomSampler — no train/val distribution mismatch
-#   4. Face-focused prompts (close-up cues only)
-#   5. lr-image-encoder = 5e-7 (slight fine-tune)
-#   6. warmup-epochs = 2
+# Script Huấn Luyện DAiSEE v6 — Aggressive UAR Push
+# Changes vs v5:
+#   1. Multi-scale: Face=40% crop, Body=75% crop (2 streams khác nhau)
+#   2. ldam-s = 3.0 (stronger gradient signal, was 1.0)
+#   3. lr-image-encoder = 2e-6 (allow more backbone adaptation)
+#   4. label-smoothing = 0.0 (sharper class boundaries)
+#   5. num-segments = 16 (more temporal info, if RAM allows)
+#   6. weight-decay = 0.01 (less regularization)
 # =============================================================================
 
 DATASET_ROOT="/kaggle/input/datasets/mngochocsupham/daisee/DAiSEE_data"
@@ -23,7 +23,7 @@ if [ ! -d "$DATASET_ROOT" ]; then
     ANN_DIR="${DATASET_ROOT}/Labels"
 fi
 
-echo "Starting DAiSEE v5 (3-Class + LDAM) Training..."
+echo "Starting DAiSEE v6 (Aggressive UAR Push) Training..."
 echo "Dataset Root: $DATASET_ROOT"
 
 if [ ! -f "$ANN_DIR/TrainLabels.csv" ]; then
@@ -33,7 +33,7 @@ fi
 
 python3 main.py \
   --mode train \
-  --exper-name DAiSEE_v5_3Class \
+  --exper-name DAiSEE_v6_Push60 \
   --dataset DAiSEE \
   --gpu 0 \
   --epochs 30 \
@@ -41,14 +41,14 @@ python3 main.py \
   --workers 2 \
   --optimizer AdamW \
   --lr 2e-5 \
-  --lr-image-encoder 5e-7 \
+  --lr-image-encoder 2e-6 \
   --lr-prompt-learner 2e-4 \
   --lr-adapter 1e-4 \
-  --weight-decay 0.05 \
+  --weight-decay 0.01 \
   --scheduler cosine \
   --warmup-epochs 2 \
   --temporal-layers 2 \
-  --num-segments 8 \
+  --num-segments 16 \
   --duration 1 \
   --image-size 224 \
   --seed 42 \
@@ -65,8 +65,8 @@ python3 main.py \
   --temperature 0.07 \
   --loss-type ldam \
   --ldam-max-m 0.5 \
-  --ldam-s 1.0 \
-  --label-smoothing 0.1 \
+  --ldam-s 3.0 \
+  --label-smoothing 0.0 \
   --lambda_mi 0.1 \
   --lambda_dc 0.1 \
   --mi-warmup 3 \
