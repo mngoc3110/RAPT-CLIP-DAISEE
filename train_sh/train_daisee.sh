@@ -1,45 +1,58 @@
 #!/bin/bash
 
 # =============================================================================
-# Script Huấn Luyện (Training) cho bộ dữ liệu DAiSEE
+# Script Huấn Luyện (Training) cho bộ dữ liệu DAiSEE (Video)
 # =============================================================================
 
 # --- Cấu hình Đường dẫn ---
-# Giả định script được chạy từ thư mục gốc của dự án
-DATASET="DAiSEE"
-ROOT_DIR="." 
+# Điều chỉnh lại đường dẫn dataset phù hợp với môi trường Colab/Server của bạn
+DATASET_ROOT="/content/RAPT-CLIP-DAISEE/DAiSEE" 
+# Hoặc nếu dataset nằm ngay trong project: DATASET_ROOT="./DAiSEE"
 
-# Đường dẫn đến các file nhãn (Label CSV)
-TRAIN_LABEL="DAiSEE/Labels/TrainLabels.csv"
-VAL_LABEL="DAiSEE/Labels/ValidationLabels.csv"
-TEST_LABEL="DAiSEE/Labels/TestLabels.csv"
+ANN_DIR="./DAiSEE/Labels" # Thư mục chứa các file CSV nhãn
 
-# --- Tham số Huấn luyện ---
-BATCH_SIZE=8           # Giảm xuống 4 nếu gặp lỗi Out of Memory (OOM)
-EPOCHS=20              # Số vòng lặp huấn luyện
-LR=2e-5                # Tốc độ học (Learning Rate)
-NUM_SEGMENTS=16        # Số lượng frame lấy mẫu từ mỗi video (quan trọng cho mô hình video)
-WORKERS=4              # Số luồng xử lý dữ liệu
+echo "Starting DAiSEE Training..."
+echo "Dataset Root: $DATASET_ROOT"
+echo "Annotations: $ANN_DIR"
 
-# --- Tên Experiment ---
-EXPER_NAME="DAiSEE_Training"
-
-# --- Lệnh Chạy ---
-echo "Bắt đầu huấn luyện trên dataset: $DATASET"
-echo "Sử dụng thiết bị: mps (Apple Silicon)"
-
+# --- Chạy Huấn Luyện ---
 python3 main.py \
-    --mode train \
-    --dataset ${DATASET} \
-    --root-dir ${ROOT_DIR} \
-    --train-annotation ${TRAIN_LABEL} \
-    --val-annotation ${VAL_LABEL} \
-    --test-annotation ${TEST_LABEL} \
-    --batch-size ${BATCH_SIZE} \
-    --epochs ${EPOCHS} \
-    --lr ${LR} \
-    --num-segments ${NUM_SEGMENTS} \
-    --workers ${WORKERS} \
-    --exper-name ${EXPER_NAME} \
-    --gpu mps \
-    --print-freq 10
+  --mode train \
+  --exper-name DAiSEE_Video_Train \
+  --dataset DAiSEE \
+  --gpu 0 \
+  --epochs 20 \
+  --batch-size 8 \
+  --optimizer AdamW \
+  --lr 2e-5 \
+  --lr-image-encoder 1e-6 \
+  --lr-prompt-learner 2e-4 \
+  --lr-adapter 1e-4 \
+  --weight-decay 0.05 \
+  --temporal-layers 2 \
+  --num-segments 16 \
+  --duration 1 \
+  --image-size 224 \
+  --seed 42 \
+  --print-freq 50 \
+  --root-dir "$DATASET_ROOT" \
+  --train-annotation "$ANN_DIR/TrainLabels.csv" \
+  --val-annotation "$ANN_DIR/ValidationLabels.csv" \
+  --test-annotation "$ANN_DIR/TestLabels.csv" \
+  --text-type prompt_ensemble \
+  --contexts-number 8 \
+  --class-token-position end \
+  --class-specific-contexts True \
+  --load_and_tune_prompt_learner True \
+  --loss-type ldam \
+  --lambda_mi 0.1 \
+  --lambda_dc 0.1 \
+  --mi-warmup 5 \
+  --mi-ramp 10 \
+  --dc-warmup 5 \
+  --dc-ramp 10 \
+  --label-smoothing 0.05 \
+  --use-amp \
+  --grad-clip 1.0
+
+echo "Training Finished!"

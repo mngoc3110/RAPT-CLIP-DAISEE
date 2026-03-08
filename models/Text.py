@@ -344,38 +344,55 @@ prompt_ensemble_caer = [
 class_names_daisee = ['Very Low', 'Low', 'High', 'Very High']
 
 class_names_with_context_daisee = [
-    "A student shows very low engagement.",
-    "A student shows low engagement.",
-    "A student shows high engagement.",
-    "A student shows very high engagement."
+    "A student shows very low engagement during an online class.",
+    "A student shows low engagement during an online class.",
+    "A student shows high engagement during an online class.",
+    "A student shows very high engagement during an online class."
 ]
 
 class_descriptor_daisee = [
-    "A student is completely disengaged, looking away, sleeping, or doing something else entirely.",
-    "A student is distracted, frequently looking around, yawning, or showing little interest.",
-    "A student is paying attention, looking at the screen, and following the lesson.",
-    "A student is highly focused, leaning forward, taking notes, and reacting to the content."
+    "A student is completely disengaged: eyes closed or looking away from screen, head down on desk, no reaction to the lesson content.",
+    "A student is passively present but distracted: occasional glances away, fidgeting, yawning, resting chin on hand, minimal focus on screen.",
+    "A student is attentively watching the screen with a calm and neutral expression, sitting upright, eyes focused on the lesson content.",
+    "A student is highly engaged and actively participating: leaning forward, eyes wide open and tracking content, nodding, showing concentration and interest."
 ]
 
 prompt_ensemble_daisee = [
     [ # Very Low (0)
-        "A video of a student with very low engagement.",
-        "A student looking away or sleeping.",
-        "A completely disengaged student."
+        "A video of a student with eyes closed, sleeping or dozing off during an online lesson.",
+        "A student looking completely away from the screen with no interest in the content.",
+        "A completely disengaged student with head down on the desk, ignoring the lesson.",
+        "A student looking down at their phone or doing something entirely unrelated to the class.",
+        "A student with a blank disconnected stare, showing zero attention to the screen.",
+        "A student who has turned away from the camera, appearing to have given up on the lesson entirely.",
+        "A student with closed eyes and a slumped posture, completely checked out of the online session."
     ],
     [ # Low (1)
-        "A video of a student with low engagement.",
-        "A student looking distracted or bored.",
-        "A student showing little interest in the lesson."
+        "A video of a bored student yawning or resting their chin on their hand during class.",
+        "A student frequently glancing around the room instead of watching the screen.",
+        "A student fidgeting, shifting in their seat, showing signs of restlessness and boredom.",
+        "A student with a blank unfocused stare, gazing past the screen without registering content.",
+        "A student slouching with drooping eyelids, struggling to stay awake during the lesson.",
+        "A student absently playing with their hair or objects on the desk while half-watching the screen.",
+        "A student with a tired expression, occasionally looking at the screen but showing minimal interest."
     ],
     [ # High (2)
-        "A video of a student with high engagement.",
-        "A student looking at the screen attentively.",
-        "A student following the lecture."
+        "A video of a student looking directly at the screen with a calm attentive expression.",
+        "A student paying attention to the lesson with steady eye contact toward the camera.",
+        "A student watching the online class quietly with a focused and neutral face.",
+        "A student sitting upright and facing the screen, maintaining consistent attention.",
+        "A student calmly following the lecture content with relaxed but focused eyes.",
+        "A student with a composed posture and eyes fixed on the screen, steadily absorbing the material.",
+        "A student silently watching the lesson with an attentive and patient demeanor."
     ],
     [ # Very High (3)
-        "A video of a highly engaged student.",
-        "A student leaning forward and taking notes.",
-        "A student completely absorbed in learning."
+        "A video of a student leaning forward with keen interest in the lesson content.",
+        "A highly engaged student with wide eyes and an intensely focused gaze at the screen.",
+        "A student nodding along or reacting visibly to the content being taught.",
+        "A student showing intense concentration with slightly furrowed brows and full attention.",
+        "A student actively engaged, with an alert posture and eyes tracking the content closely.",
+        "A student smiling or showing expressions of curiosity and excitement about the lesson material.",
+        "A student with animated facial expressions, deeply absorbed in what is being presented on screen."
     ]
 ]
+

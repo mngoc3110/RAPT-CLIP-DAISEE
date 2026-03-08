@@ -83,6 +83,11 @@ optim_group.add_argument('--weight-decay', type=float, default=0.0005, help='Wei
 optim_group.add_argument('--momentum', type=float, default=0.9, help='Momentum for the SGD optimizer.')
 optim_group.add_argument('--milestones', nargs='+', type=int, default=[10, 15], help='Epochs at which to decay the learning rate.')
 optim_group.add_argument('--gamma', type=float, default=0.1, help='Factor for learning rate decay.')
+optim_group.add_argument('--scheduler', type=str, default='multistep', choices=['multistep', 'cosine'], help='LR Scheduler type.')
+optim_group.add_argument('--warmup-epochs', type=int, default=3, help='Number of warmup epochs for cosine scheduler.')
+optim_group.add_argument('--use-ema', action='store_true', help='Use Exponential Moving Average of model weights.')
+optim_group.add_argument('--ema-decay', type=float, default=0.999, help='EMA decay rate.')
+optim_group.add_argument('--use-random-erasing', action='store_true', help='Use RandomErasing augmentation on body branch.')
 
 # --- Loss & Imbalance Handling ---
 loss_group = parser.add_argument_group('Loss & Imbalance Handling', 'Parameters for loss functions and imbalance handling')
@@ -187,6 +192,7 @@ def run_training(args: argparse.Namespace) -> None:
     best_train_war = 0.0
     best_val_uar = 0.0
     best_val_war = 0.0
+
     start_epoch = 0
     
     # Build model
@@ -214,15 +220,15 @@ def run_training(args: argparse.Namespace) -> None:
             if 0 <= label_idx < len(cls_num_list):
                 cls_num_list[label_idx] += 1
     elif hasattr(train_loader.dataset, 'samples'):
-        print(f"=> Calculating class distribution from samples (CAER-S)...")
+        print(f"=> Calculating class distribution from samples ({args.dataset})...")
         # CAERSDataset stores (path, label, rel_path) in samples
-        for _, label, _ in train_loader.dataset.samples:
+        for item in train_loader.dataset.samples:
             # CAERSDataset.__getitem__ returns label (if 0-based) or label-1 (if 1-based).
             # We updated CAERSDataset to assume 0-based file labels, so __getitem__ returns label directly.
             # Thus, we should use 'label' directly here as well, assuming it matches what __getitem__ returns.
             # But wait, __getitem__ returns 'label_idx'.
             # If the file has 0-based labels, 'label' in samples is 0-based.
-            label_idx = int(label)
+            label_idx = int(item[1])
             if 0 <= label_idx < len(cls_num_list):
                 cls_num_list[label_idx] += 1
             else:
@@ -277,8 +283,32 @@ def run_training(args: argparse.Namespace) -> None:
     else:
         raise ValueError(f"Optimizer {args.optimizer} not supported.")
 
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.milestones, gamma=args.gamma)
+    if args.scheduler == 'cosine':
+        cosine_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer, T_max=args.epochs - args.warmup_epochs, eta_min=1e-7
+        )
+        if args.warmup_epochs > 0:
+            warmup_scheduler = torch.optim.lr_scheduler.LinearLR(
+                optimizer, start_factor=0.2, total_iters=args.warmup_epochs
+            )
+            scheduler = torch.optim.lr_scheduler.SequentialLR(
+                optimizer, schedulers=[warmup_scheduler, cosine_scheduler], milestones=[args.warmup_epochs]
+            )
+            print(f"=> Using CosineAnnealing + LinearWarmup ({args.warmup_epochs} epochs warmup)")
+        else:
+            scheduler = cosine_scheduler
+            print(f"=> Using CosineAnnealing scheduler (no warmup)")
+    else:
+        scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.milestones, gamma=args.gamma)
+        print(f"=> Using MultiStepLR scheduler (milestones={args.milestones})")
     
+    # EMA (must be after model is built and on device)
+    ema = None
+    if args.use_ema:
+        from utils.ema import ModelEMA
+        ema = ModelEMA(model, decay=args.ema_decay)
+        print(f"=> Using EMA with decay={args.ema_decay}")
+
     # Resume from checkpoint
     if args.resume:
         if os.path.isfile(args.resume):
@@ -328,7 +358,18 @@ def run_training(args: argparse.Namespace) -> None:
 
         # Train & Validate
         train_war, train_uar, train_los, train_cm = trainer.train_epoch(train_loader, epoch)
+
+        # Update EMA after each epoch
+        if ema is not None:
+            ema.update(model)
+
+        # Validate with EMA weights if available
+        if ema is not None:
+            ema.apply(model)
         val_war, val_uar, val_los, val_cm = trainer.validate(val_loader, str(epoch))
+        if ema is not None:
+            ema.restore(model)
+
         trainer.scheduler.step()
 
         # Save checkpoint
@@ -338,9 +379,15 @@ def run_training(args: argparse.Namespace) -> None:
         best_train_uar = max(train_uar, best_train_uar)
         best_train_war = max(train_war, best_train_war)
 
+        # Save checkpoint (use EMA weights for best model if available)
+        save_state = trainer.model.state_dict()
+        if is_best and ema is not None:
+            ema.apply(model)
+            save_state = trainer.model.state_dict()
+            ema.restore(model)
         save_checkpoint({
             'epoch': epoch + 1,
-            'state_dict': trainer.model.state_dict(),
+            'state_dict': save_state,
             'best_acc': best_val_war, 
             'optimizer': trainer.optimizer.state_dict(),
             'recorder': recorder
@@ -368,7 +415,7 @@ def run_training(args: argparse.Namespace) -> None:
 
     # Final evaluation with best model
     print("=> Final evaluation on test set...")
-    pre_trained_dict = torch.load(best_checkpoint_path, map_location=f"cuda:{args.gpu}", weights_only=False)['state_dict']
+    pre_trained_dict = torch.load(best_checkpoint_path, map_location=args.device, weights_only=False)['state_dict']
     model.load_state_dict(pre_trained_dict)
     computer_uar_war(
         val_loader=test_loader,
