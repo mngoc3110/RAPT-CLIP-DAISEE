@@ -74,6 +74,7 @@ python3 main.py \
   --dc-warmup 3 \
   --dc-ramp 7 \
   --mixup-alpha 0.0 \
+  --use-weighted-sampler \
   --use-amp \
   --grad-clip 1.0
 
