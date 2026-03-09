@@ -273,8 +273,8 @@ def run_training(args: argparse.Namespace) -> None:
     elif args.loss_type == 'ordinal_ce':
         from utils.loss import OrdinalCELoss
         num_classes = len(cls_num_list) if cls_num_list else 3
-        print(f"=> Using Ordinal CE Loss (sigma=1.0, {num_classes} classes)")
-        criterion = OrdinalCELoss(num_classes=num_classes, sigma=1.0).to(args.device)
+        print(f"=> Using Ordinal CE Loss (sigma=0.5, {num_classes} classes)")
+        criterion = OrdinalCELoss(num_classes=num_classes, sigma=0.5).to(args.device)
     elif args.label_smoothing > 0:
         criterion = LSR2(e=args.label_smoothing, label_mode='class_descriptor').to(args.device)
     else:
