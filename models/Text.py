@@ -494,3 +494,63 @@ prompt_ensemble_student_engagement_6 = [
         "A student fighting sleep with droopy eyes and nodding head during the lecture."
     ]
 ]
+
+# ============================================================================
+# DAiSEE 4-Class Discrete (Boredom, Engagement, Confusion, Frustration)
+# ============================================================================
+class_names_daisee4 = [
+    "Boredom", "Engagement", "Confusion", "Frustration"
+]
+
+class_names_with_context_daisee4 = [
+    "A bored student in an online class.",
+    "An engaged student in an online class.",
+    "A confused student in an online class.",
+    "A frustrated student in an online class."
+]
+
+class_descriptor_daisee4 = [
+    "A student is bored: blank expression, glazed eyes, no interest in the lesson, appearing zoned out.",
+    "A student is engaged: focused eyes on screen, attentive expression, actively following the lesson.",
+    "A student is confused: furrowed brows, tilted head, puzzled expression, trying to understand.",
+    "A student is frustrated: tense face, clenched jaw, visible stress and irritation."
+]
+
+prompt_ensemble_daisee4 = [
+    [ # Boredom (0)
+        "A close-up of a student's face with a blank, expressionless look showing complete boredom.",
+        "A student with glazed-over eyes and no interest, staring blankly at the screen.",
+        "A face showing disengagement with half-open eyes and a flat lifeless expression.",
+        "A student with chin resting on hand, looking listless and mentally checked out.",
+        "A close-up of a bored face with droopy features and no emotional response to the lesson.",
+        "A student showing signs of tedium with slow blinking and a vacant unfocused stare.",
+        "A face with a dull expression, mouth slightly open, showing zero interest in class."
+    ],
+    [ # Engagement (1)
+        "A close-up of a student's face with focused alert eyes looking directly at the screen.",
+        "A student with an attentive expression, eyes bright and concentrated on the lesson.",
+        "A face showing active participation with widened eyes and a slight nod of understanding.",
+        "A student with steady eye contact toward the camera and a calm focused expression.",
+        "A close-up of an engaged face with raised eyebrows showing curiosity and interest.",
+        "A student with clear open eyes watching the screen attentively with a composed expression.",
+        "A face showing sustained attention with gentle focused eyes and an alert gaze."
+    ],
+    [ # Confusion (2)
+        "A close-up of a student's face with furrowed brows and a puzzled questioning expression.",
+        "A student showing confusion with squinted eyes and a tilted head during online class.",
+        "A face with raised eyebrows and an uncertain look, trying to process difficult content.",
+        "A student with a perplexed expression and mouth slightly open in bewilderment.",
+        "A close-up showing a confused face with creased forehead and narrowed eyes.",
+        "A student scratching their head with a bewildered expression during the lesson.",
+        "A face showing cognitive struggle with knitted brows and a questioning gaze."
+    ],
+    [ # Frustration (3)
+        "A close-up of a student's face showing visible frustration with clenched jaw and tension.",
+        "A student with a stressed and annoyed expression, struggling with course material.",
+        "A face with pressed lips and an irritated frown showing anger at the difficulty.",
+        "A student showing emotional distress with narrowed eyes and a tense expression.",
+        "A close-up of a frustrated face with flared nostrils and a hard stare.",
+        "A student with hands on face showing exasperation and overwhelming stress.",
+        "A face showing intense displeasure with tight muscles and a deep frown."
+    ]
+]

@@ -256,3 +256,81 @@ def daisee_train_data_loader(root_dir, list_file, num_segments, duration, image_
 def daisee_test_data_loader(root_dir, list_file, num_segments, duration, image_size, bounding_box_face, bounding_box_body, crop_body=False, num_classes=4):
     dataset = DAiSEEDataset(root_dir, list_file, mode='test', num_segments=num_segments, duration=duration, image_size=image_size)
     return dataset
+
+
+class DAiSEE4DiscreteDataset(DAiSEEDataset):
+    """DAiSEE with 4 discrete affective states as classes.
+    
+    Instead of 4 ordinal levels of Engagement, uses the DOMINANT
+    affective state as the class label:
+        0: Boredom
+        1: Engagement  
+        2: Confusion
+        3: Frustration
+    
+    For each video, the column with the highest value becomes the label.
+    Ties broken by: Boredom > Confusion > Frustration > Engagement
+    (favor minority classes in ties to help imbalance).
+    All-zero samples default to Engagement (most neutral).
+    """
+    STATE_COLS = ['Boredom', 'Engagement', 'Confusion', 'Frustration']
+    # Priority for tie-breaking (higher = preferred in ties)
+    TIE_PRIORITY = {'Boredom': 3, 'Confusion': 2, 'Frustration': 1, 'Engagement': 0}
+    
+    def _make_dataset(self):
+        samples = []
+        if not os.path.exists(self.annotation_file):
+            print(f"Error: Annotation file {self.annotation_file} not found.")
+            return samples
+            
+        print(f"Loading annotations from: {self.annotation_file}")
+        try:
+            df = pd.read_csv(self.annotation_file)
+            df.columns = df.columns.str.strip()  # Fix trailing spaces
+        except Exception as e:
+            print(f"Error reading CSV: {e}")
+            return samples
+
+        if 'Train' in self.annotation_file or self.mode == 'train':
+            split_dir = 'Train'
+        elif 'Validation' in self.annotation_file or self.mode == 'val':
+            split_dir = 'Validation'
+        elif 'Test' in self.annotation_file or self.mode == 'test':
+            split_dir = 'Test'
+        else:
+            split_dir = 'Train'
+
+        # Class mapping: column name → label index
+        col_to_label = {col: i for i, col in enumerate(self.STATE_COLS)}
+        
+        print(f"Processing entries for {self.mode} (4-class discrete)...")
+        class_counts = {col: 0 for col in self.STATE_COLS}
+        
+        for _, row in tqdm(df.iterrows(), total=len(df), desc=f"Loading {self.mode}"):
+            clip_id_ext = row['ClipID']
+            if not isinstance(clip_id_ext, str):
+                continue
+            clip_id = os.path.splitext(clip_id_ext)[0]
+            subject_id = clip_id[:6]
+            
+            # Find dominant state
+            values = {col: int(row[col]) for col in self.STATE_COLS}
+            max_val = max(values.values())
+            
+            if max_val == 0:
+                # All zeros → default to Engagement
+                dominant = 'Engagement'
+            else:
+                # Pick column with highest value, tie-break by priority
+                candidates = [col for col, val in values.items() if val == max_val]
+                dominant = max(candidates, key=lambda c: self.TIE_PRIORITY[c])
+            
+            label = col_to_label[dominant]
+            class_counts[dominant] += 1
+            
+            clip_dir = os.path.join(self.root_dir, 'DataSet', split_dir, subject_id, clip_id)
+            samples.append((clip_dir, label, clip_id_ext))
+
+        print(f"DAiSEE 4-Discrete ({self.mode}): {len(samples)} samples")
+        print(f"  Distribution: {class_counts}")
+        return samples
