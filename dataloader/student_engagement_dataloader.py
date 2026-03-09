@@ -1,0 +1,144 @@
+"""
+Student Engagement Dataset Dataloader
+Dataset: https://www.kaggle.com/datasets/joyee19/studentengagement
+Structure:
+    Student-engagement/
+        Engaged/
+            confused/
+            engaged/
+            frustrated/
+        Not Engaged/
+            Looking away/
+            bored/
+            drowsy/
+
+Binary classification: Engaged (0) vs Not Engaged (1)
+Static images → replicated to num_segments for temporal module compatibility.
+"""
+import os
+import random
+import torch
+import numpy as np
+from PIL import Image
+from torch.utils import data
+from torchvision import transforms
+from tqdm import tqdm
+from dataloader.video_transform import GroupResize, Stack, ToTorchFormatTensor, GroupRandomHorizontalFlip
+
+# CLIP normalization constants
+CLIP_MEAN = [0.48145466, 0.4578275, 0.40821073]
+CLIP_STD = [0.26862954, 0.26130258, 0.27577711]
+
+
+class StudentEngagementDataset(data.Dataset):
+    def __init__(self, root_dir, mode='train', num_segments=8, image_size=224, val_ratio=0.15, test_ratio=0.15, seed=42):
+        self.root_dir = root_dir
+        self.mode = mode
+        self.num_segments = num_segments
+        self.image_size = image_size
+        
+        # Class mapping: folder name → label
+        self.class_map = {'Engaged': 0, 'Not Engaged': 1}
+        
+        # Build full dataset then split
+        all_samples = self._scan_dataset()
+        self.samples = self._split_dataset(all_samples, val_ratio, test_ratio, seed)
+        
+        # Augmentation
+        if mode == 'train':
+            self._color_jitter = transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.2)
+            self.transform = transforms.Compose([
+                transforms.RandomResizedCrop(image_size, scale=(0.7, 1.0)),
+                transforms.RandomHorizontalFlip(),
+                transforms.ToTensor(),
+            ])
+        else:
+            self.transform = transforms.Compose([
+                transforms.Resize((image_size, image_size)),
+                transforms.ToTensor(),
+            ])
+        
+        # CLIP normalization
+        self.normalize = transforms.Normalize(mean=CLIP_MEAN, std=CLIP_STD)
+    
+    def _scan_dataset(self):
+        """Scan folder structure and collect all (path, label) pairs."""
+        samples = []
+        for class_name, label in self.class_map.items():
+            class_dir = os.path.join(self.root_dir, class_name)
+            if not os.path.isdir(class_dir):
+                print(f"Warning: Class directory not found: {class_dir}")
+                continue
+            # Scan subclass folders
+            for subclass in os.listdir(class_dir):
+                subclass_dir = os.path.join(class_dir, subclass)
+                if not os.path.isdir(subclass_dir):
+                    continue
+                for fname in os.listdir(subclass_dir):
+                    if fname.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
+                        fpath = os.path.join(subclass_dir, fname)
+                        samples.append((fpath, label))
+        return samples
+    
+    def _split_dataset(self, all_samples, val_ratio, test_ratio, seed):
+        """Deterministic stratified split."""
+        rng = random.Random(seed)
+        
+        # Group by label
+        by_label = {}
+        for path, label in all_samples:
+            by_label.setdefault(label, []).append((path, label))
+        
+        train, val, test = [], [], []
+        for label, items in by_label.items():
+            rng.shuffle(items)
+            n = len(items)
+            n_test = int(n * test_ratio)
+            n_val = int(n * val_ratio)
+            test.extend(items[:n_test])
+            val.extend(items[n_test:n_test + n_val])
+            train.extend(items[n_test + n_val:])
+        
+        if self.mode == 'train':
+            result = train
+        elif self.mode == 'val':
+            result = val
+        else:
+            result = test
+        
+        # Print stats
+        print(f"StudentEngagement ({self.mode}): {len(result)} samples")
+        label_counts = {}
+        for _, l in result:
+            label_counts[l] = label_counts.get(l, 0) + 1
+        print(f"  Distribution: {label_counts}")
+        
+        return result
+    
+    def __getitem__(self, index):
+        img_path, label = self.samples[index]
+        
+        try:
+            img = Image.open(img_path).convert('RGB')
+        except Exception as e:
+            print(f"Error loading {img_path}: {e}")
+            img = Image.new('RGB', (self.image_size, self.image_size), (128, 128, 128))
+        
+        # Apply color jitter during training (on PIL image)
+        if self.mode == 'train' and hasattr(self, '_color_jitter'):
+            img = self._color_jitter(img)
+        
+        # Apply transform (crop/resize + to tensor)
+        img_tensor = self.transform(img)  # [3, H, W]
+        
+        # CLIP normalize
+        img_tensor = self.normalize(img_tensor)
+        
+        # Replicate to num_segments for temporal module: [T, 3, H, W]
+        face_frames = img_tensor.unsqueeze(0).repeat(self.num_segments, 1, 1, 1)
+        body_frames = face_frames.clone()
+        
+        return face_frames, body_frames, label
+    
+    def __len__(self):
+        return len(self.samples)

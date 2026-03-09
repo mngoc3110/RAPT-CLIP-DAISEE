@@ -385,4 +385,41 @@ prompt_ensemble_daisee = [
     ]
 ]
 
+# ============================================================================
+# Student Engagement Dataset (Binary: Engaged vs Not Engaged)
+# ============================================================================
+class_names_student_engagement = [
+    "Engaged",
+    "Not Engaged"
+]
 
+class_names_with_context_student_engagement = [
+    "An engaged student in an online class.",
+    "A not engaged student in an online class."
+]
+
+class_descriptor_student_engagement = [
+    "A student is engaged: showing concentration, confusion about content, or frustration while actively trying to follow the lesson.",
+    "A student is not engaged: looking away from the screen, appearing bored, or drowsy during the online class."
+]
+
+prompt_ensemble_student_engagement = [
+    [ # Engaged (0) - includes confused, engaged, frustrated (actively processing)
+        "A close-up of a student's face looking directly at the screen with focused attentive eyes.",
+        "A student's face showing concentration and mental effort while following an online lesson.",
+        "A face with furrowed brows and a confused expression, actively trying to understand the content.",
+        "A student with an engaged and alert expression, eyes fixed on the screen during online class.",
+        "A close-up showing a student's face with a frustrated but attentive look, struggling with the material.",
+        "A student with wide open eyes showing curiosity and active participation in the lesson.",
+        "A face showing emotional involvement in the class content, whether concentration, confusion, or effort."
+    ],
+    [ # Not Engaged (1) - includes looking away, bored, drowsy
+        "A close-up of a student's face looking away from the screen, not paying attention to the lesson.",
+        "A student's face with droopy eyes and a bored expression during an online class.",
+        "A face showing complete disinterest with glazed-over eyes and a listless expression.",
+        "A student appearing drowsy with heavy eyelids, about to fall asleep during the online lesson.",
+        "A close-up of a student looking at something other than the screen, distracted and unfocused.",
+        "A student with a yawning expression and tired face, showing no interest in the class.",
+        "A face showing signs of sleepiness and boredom, with the chin resting on hand and eyes half-closed."
+    ]
+]

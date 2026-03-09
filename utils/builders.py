@@ -69,6 +69,11 @@ def get_class_info(args: argparse.Namespace) -> Tuple[list, list]:
         class_names_with_context = class_names_with_context_daisee
         class_descriptor = class_descriptor_daisee
         ensemble_prompts = prompt_ensemble_daisee
+    elif dataset_name == "StudentEngagement":
+        class_names = class_names_student_engagement
+        class_names_with_context = class_names_with_context_student_engagement
+        class_descriptor = class_descriptor_student_engagement
+        ensemble_prompts = prompt_ensemble_student_engagement
     else:
         raise NotImplementedError(f"Dataset '{dataset_name}' is not implemented. Only CAER-S and DAiSEE are supported in this version.")
 
@@ -216,5 +221,45 @@ def build_dataloaders(args: argparse.Namespace) -> Tuple[torch.utils.data.DataLo
         print(f"Total number of training samples: {len(train_data)}")
         return train_loader, val_loader, test_loader
 
+    elif args.dataset.strip() == "StudentEngagement":
+        print(f"=> Using StudentEngagement specific dataloader...")
+        from dataloader.student_engagement_dataloader import StudentEngagementDataset
+        
+        train_data = StudentEngagementDataset(
+            root_dir=args.root_dir,
+            mode='train',
+            num_segments=args.num_segments,
+            image_size=args.image_size
+        )
+        
+        val_data = StudentEngagementDataset(
+            root_dir=args.root_dir,
+            mode='val',
+            num_segments=args.num_segments,
+            image_size=args.image_size
+        )
+        
+        test_data = StudentEngagementDataset(
+            root_dir=args.root_dir,
+            mode='test',
+            num_segments=args.num_segments,
+            image_size=args.image_size
+        )
+        
+        train_loader = torch.utils.data.DataLoader(
+            train_data, batch_size=args.batch_size, shuffle=True,
+            num_workers=args.workers, pin_memory=True, drop_last=True
+        )
+        val_loader = torch.utils.data.DataLoader(
+            val_data, batch_size=args.batch_size, shuffle=False,
+            num_workers=args.workers, pin_memory=True
+        )
+        test_loader = torch.utils.data.DataLoader(
+            test_data, batch_size=args.batch_size, shuffle=False,
+            num_workers=args.workers, pin_memory=True
+        )
+        print(f"Total number of training samples: {len(train_data)}")
+        return train_loader, val_loader, test_loader
+
     else:
-        raise NotImplementedError(f"Dataset {args.dataset} is not supported. Please use CAER-S or DAiSEE.")
+        raise NotImplementedError(f"Dataset {args.dataset} is not supported.")
