@@ -18,7 +18,7 @@ class Trainer:
                  dc_criterion=None, lambda_dc=0,
                  mi_warmup=0, mi_ramp=0,
                  dc_warmup=0, dc_ramp=0, use_amp=False, grad_clip=1.0, mixup_alpha=0.0,
-                 use_ldl=False, ldl_warmup=0):
+                 use_ldl=False, ldl_warmup=0, loss_type='ce'):
         self.model = model
         self.criterion = criterion
         self.optimizer = optimizer
@@ -39,7 +39,8 @@ class Trainer:
         self.mixup_alpha = mixup_alpha
         self.use_ldl = use_ldl
         self.ldl_warmup = ldl_warmup
-        print(f"DEBUG: Trainer initialized with use_ldl={use_ldl}, ldl_warmup={ldl_warmup}")
+        self.loss_type = loss_type
+        print(f"DEBUG: Trainer initialized with use_ldl={use_ldl}, ldl_warmup={ldl_warmup}, loss_type={loss_type}")
         
         if self.use_amp:
             self.scaler = torch.cuda.amp.GradScaler()
@@ -234,7 +235,11 @@ class Trainer:
                         self.optimizer.step()
 
                 # Record metrics
-                preds = output.argmax(dim=1)
+                if hasattr(self, 'loss_type') and self.loss_type == 'coral':
+                    from utils.loss import CORALLoss
+                    preds = CORALLoss.predict(output, num_tasks=output.size(1) - 1)
+                else:
+                    preds = output.argmax(dim=1)
                 correct_preds = preds.eq(target).sum().item()
                 acc = (correct_preds / target.size(0)) * 100.0
 

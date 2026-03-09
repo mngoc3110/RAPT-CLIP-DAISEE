@@ -64,7 +64,7 @@ python3 main.py \
   --class-specific-contexts True \
   --load_and_tune_prompt_learner True \
   --temperature 0.07 \
-  --loss-type ordinal_ce \
+  --loss-type evr \
   --label-smoothing 0.0 \
   --lambda_mi 0.1 \
   --lambda_dc 0.1 \
@@ -74,6 +74,7 @@ python3 main.py \
   --dc-ramp 7 \
   --mixup-alpha 0.0 \
   --use-amp \
-  --grad-clip 1.0
+  --grad-clip 1.0 \
+  --early-stop 5
 
 echo "Training Finished!"

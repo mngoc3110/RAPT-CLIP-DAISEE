@@ -237,3 +237,84 @@ class OrdinalCELoss(nn.Module):
         log_probs = F.log_softmax(logits, dim=1)
         loss = (-soft_targets * log_probs).sum(dim=1).mean()
         return loss
+
+
+class CORALLoss(nn.Module):
+    """CORAL - Consistent Rank Logits for Ordinal Regression.
+    
+    For K ordinal classes, trains K-1 binary classifiers:
+      Task k: P(Y > k) using sigmoid + BCE
+    
+    Prediction: class = sum(sigmoid(logit_k) > 0.5 for k in range(K-1))
+    
+    Reference: Cao et al., "Rank consistent ordinal regression for neural networks" (2020)
+    """
+    def __init__(self, num_classes=3):
+        super(CORALLoss, self).__init__()
+        self.num_classes = num_classes
+        self.num_tasks = num_classes - 1
+        print(f"CORALLoss: {num_classes} classes -> {self.num_tasks} cumulative binary tasks")
+    
+    def forward(self, logits, targets):
+        # logits: (B, num_classes), we use first num_tasks columns
+        # targets: (B,) with values in [0, num_classes-1]
+        device = logits.device
+        batch_size = logits.size(0)
+        
+        # Create cumulative labels: for target=k, labels[i] = 1 if i < k
+        # e.g., target=0 -> [0,0], target=1 -> [1,0], target=2 -> [1,1]
+        cum_labels = torch.zeros(batch_size, self.num_tasks, device=device)
+        for k in range(self.num_tasks):
+            cum_labels[:, k] = (targets > k).float()
+        
+        # Use first num_tasks logits
+        task_logits = logits[:, :self.num_tasks]  # (B, K-1)
+        
+        # Binary cross entropy with logits for each task
+        loss = F.binary_cross_entropy_with_logits(task_logits, cum_labels)
+        return loss
+    
+    @staticmethod
+    def predict(logits, num_tasks=2):
+        """Convert CORAL logits to class predictions."""
+        probs = torch.sigmoid(logits[:, :num_tasks])
+        # Class = number of cumulative thresholds exceeded
+        preds = (probs > 0.5).sum(dim=1)
+        return preds
+
+
+class EVRLoss(nn.Module):
+    """Expected Value Regression Loss for ordinal classification.
+    
+    Treats ordinal labels as continuous values.
+    Computes expected value from softmax probabilities and minimizes MSE with target.
+    
+    E[Y] = sum(k * P(Y=k)) for k in range(K)
+    Loss = MSE(E[Y], target)
+    
+    Uses argmax for prediction, so no architecture change needed.
+    """
+    def __init__(self, num_classes=3, ce_weight=0.5):
+        super(EVRLoss, self).__init__()
+        self.num_classes = num_classes
+        self.ce_weight = ce_weight  # Weight for auxiliary CE loss
+        print(f"EVRLoss: {num_classes} classes, CE weight={ce_weight}")
+    
+    def forward(self, logits, targets):
+        # Softmax probabilities
+        probs = F.softmax(logits, dim=1)  # (B, K)
+        
+        # Expected value: E[Y] = sum(k * P(Y=k))
+        class_values = torch.arange(self.num_classes, dtype=torch.float32, device=logits.device)
+        expected_value = (probs * class_values.unsqueeze(0)).sum(dim=1)  # (B,)
+        
+        # MSE with target ordinal value
+        target_float = targets.float()
+        mse_loss = F.mse_loss(expected_value, target_float)
+        
+        # Auxiliary CE loss for discrete classification
+        ce_loss = F.cross_entropy(logits, targets)
+        
+        # Combined loss
+        loss = (1 - self.ce_weight) * mse_loss + self.ce_weight * ce_loss
+        return loss

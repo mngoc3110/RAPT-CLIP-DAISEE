@@ -92,7 +92,7 @@ optim_group.add_argument('--early-stop', type=int, default=0, help='Early stoppi
 
 # --- Loss & Imbalance Handling ---
 loss_group = parser.add_argument_group('Loss & Imbalance Handling', 'Parameters for loss functions and imbalance handling')
-loss_group.add_argument('--loss-type', type=str, default='ce', choices=['ce', 'ldl', 'ldam', 'focal', 'ordinal_ce'], help='Type of primary classification loss.')
+loss_group.add_argument('--loss-type', type=str, default='ce', choices=['ce', 'ldl', 'ldam', 'focal', 'ordinal_ce', 'coral', 'evr'], help='Type of primary classification loss.')
 loss_group.add_argument('--focal-gamma', type=float, default=2.0, help='Gamma for focal loss.')
 loss_group.add_argument('--lambda_mi', type=float, default=0.1, help='Weight for the Mutual Information loss.')
 loss_group.add_argument('--lambda_dc', type=float, default=0.1, help='Weight for the Decorrelation loss.')
@@ -277,6 +277,16 @@ def run_training(args: argparse.Namespace) -> None:
         num_classes = len(cls_num_list) if cls_num_list else 3
         print(f"=> Using Ordinal CE Loss (sigma=0.5, {num_classes} classes)")
         criterion = OrdinalCELoss(num_classes=num_classes, sigma=0.5).to(args.device)
+    elif args.loss_type == 'coral':
+        from utils.loss import CORALLoss
+        num_classes = len(cls_num_list) if cls_num_list else 3
+        print(f"=> Using CORAL Loss ({num_classes} classes, {num_classes-1} cumulative tasks)")
+        criterion = CORALLoss(num_classes=num_classes).to(args.device)
+    elif args.loss_type == 'evr':
+        from utils.loss import EVRLoss
+        num_classes = len(cls_num_list) if cls_num_list else 3
+        print(f"=> Using EVR Loss ({num_classes} classes, CE weight=0.5)")
+        criterion = EVRLoss(num_classes=num_classes, ce_weight=0.5).to(args.device)
     elif args.label_smoothing > 0:
         criterion = LSR2(e=args.label_smoothing, label_mode='class_descriptor').to(args.device)
     else:
@@ -359,7 +369,8 @@ def run_training(args: argparse.Namespace) -> None:
                     mi_warmup=args.mi_warmup, mi_ramp=args.mi_ramp,
                     dc_warmup=args.dc_warmup, dc_ramp=args.dc_ramp, 
                     use_amp=args.use_amp, grad_clip=args.grad_clip, mixup_alpha=args.mixup_alpha,
-                    use_ldl=args.use_ldl, ldl_warmup=args.ldl_warmup)
+                    use_ldl=args.use_ldl, ldl_warmup=args.ldl_warmup,
+                    loss_type=args.loss_type)
     
     for epoch in range(start_epoch, args.epochs):
         inf = f'******************** Epoch: {epoch} ********************'
