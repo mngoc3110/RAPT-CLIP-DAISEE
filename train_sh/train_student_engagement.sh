@@ -7,13 +7,46 @@
 # Static images → replicated to 8 frames for temporal module
 # =============================================================================
 
-DATASET_ROOT="/kaggle/input/datasets/joyee19/studentengagement/Student-engagement"
+DATASET_ROOT=""
 
-if [ ! -d "$DATASET_ROOT" ]; then
-    DATASET_ROOT="/kaggle/input/studentengagement/Student-engagement"
+# Search common Kaggle paths
+for CANDIDATE in \
+    "/kaggle/input/studentengagement" \
+    "/kaggle/input/studentengagement/Student-engagement" \
+    "/kaggle/input/datasets/joyee19/studentengagement" \
+    "/kaggle/input/datasets/joyee19/studentengagement/Student-engagement" \
+    "/content/Student-engagement" \
+    "/content/studentengagement"; do
+    if [ -d "$CANDIDATE" ]; then
+        DATASET_ROOT="$CANDIDATE"
+        break
+    fi
+done
+
+if [ -z "$DATASET_ROOT" ]; then
+    echo "ERROR: Cannot find dataset. Listing /kaggle/input/:"
+    ls -la /kaggle/input/ 2>/dev/null || echo "/kaggle/input not found"
+    ls -laR /kaggle/input/studentengagement/ 2>/dev/null || echo "studentengagement not found"
+    exit 1
 fi
-if [ ! -d "$DATASET_ROOT" ]; then
-    DATASET_ROOT="/content/Student-engagement"
+
+# Debug: show what's inside
+echo "Found dataset at: $DATASET_ROOT"
+echo "Contents:"
+ls -la "$DATASET_ROOT"
+
+# Check if Engaged/Not Engaged are inside a subfolder
+if [ ! -d "$DATASET_ROOT/Engaged" ] && [ ! -d "$DATASET_ROOT/Not Engaged" ]; then
+    # Try to find the right subfolder
+    SUBFOLDER=$(find "$DATASET_ROOT" -maxdepth 2 -type d -name "Engaged" 2>/dev/null | head -1)
+    if [ -n "$SUBFOLDER" ]; then
+        DATASET_ROOT=$(dirname "$SUBFOLDER")
+        echo "Auto-detected actual root: $DATASET_ROOT"
+    else
+        echo "ERROR: Cannot find 'Engaged' folder. Full tree:"
+        find "$DATASET_ROOT" -maxdepth 3 -type d
+        exit 1
+    fi
 fi
 
 echo "Starting Student Engagement Training..."
