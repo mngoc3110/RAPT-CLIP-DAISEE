@@ -37,8 +37,8 @@ class StudentEngagementDataset(data.Dataset):
         self.num_segments = num_segments
         self.image_size = image_size
         
-        # Class mapping: folder name → label
-        self.class_map = {'Engaged': 0, 'Not Engaged': 1}
+        # Class mapping: auto-detect folder names
+        self.class_map = self._detect_classes(root_dir)
         
         # Build full dataset then split
         all_samples = self._scan_dataset()
@@ -61,6 +61,32 @@ class StudentEngagementDataset(data.Dataset):
         # CLIP normalization
         self.normalize = transforms.Normalize(mean=CLIP_MEAN, std=CLIP_STD)
     
+    def _detect_classes(self, root_dir):
+        """Auto-detect class folder names."""
+        class_map = {}
+        engaged_variants = ['engaged', 'Engaged', 'ENGAGED']
+        not_engaged_variants = ['not engaged', 'Not Engaged', 'Not engaged', 'NotEngaged', 
+                                'not_engaged', 'NOT ENGAGED', 'Notengaged']
+        
+        for item in os.listdir(root_dir):
+            item_path = os.path.join(root_dir, item)
+            if not os.path.isdir(item_path):
+                continue
+            item_lower = item.lower().strip()
+            if item_lower.startswith('not') and 'engag' in item_lower:
+                class_map[item] = 1  # Not Engaged
+            elif 'engag' in item_lower:
+                class_map[item] = 0  # Engaged
+        
+        if not class_map:
+            # Fallback: use all subdirectories as classes
+            dirs = sorted([d for d in os.listdir(root_dir) if os.path.isdir(os.path.join(root_dir, d))])
+            for i, d in enumerate(dirs):
+                class_map[d] = i
+        
+        print(f"Auto-detected class mapping: {class_map}")
+        return class_map
+    
     def _scan_dataset(self):
         """Scan folder structure and collect all (path, label) pairs."""
         samples = []
@@ -69,15 +95,13 @@ class StudentEngagementDataset(data.Dataset):
             if not os.path.isdir(class_dir):
                 print(f"Warning: Class directory not found: {class_dir}")
                 continue
-            # Scan subclass folders
-            for subclass in os.listdir(class_dir):
-                subclass_dir = os.path.join(class_dir, subclass)
-                if not os.path.isdir(subclass_dir):
-                    continue
-                for fname in os.listdir(subclass_dir):
+            # Scan for images in class_dir and all subdirectories
+            for dirpath, dirnames, filenames in os.walk(class_dir):
+                for fname in filenames:
                     if fname.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
-                        fpath = os.path.join(subclass_dir, fname)
+                        fpath = os.path.join(dirpath, fname)
                         samples.append((fpath, label))
+        print(f"Total scanned: {len(samples)} images")
         return samples
     
     def _split_dataset(self, all_samples, val_ratio, test_ratio, seed):
