@@ -88,6 +88,7 @@ optim_group.add_argument('--warmup-epochs', type=int, default=3, help='Number of
 optim_group.add_argument('--use-ema', action='store_true', help='Use Exponential Moving Average of model weights.')
 optim_group.add_argument('--ema-decay', type=float, default=0.999, help='EMA decay rate.')
 optim_group.add_argument('--use-random-erasing', action='store_true', help='Use RandomErasing augmentation on body branch.')
+optim_group.add_argument('--early-stop', type=int, default=0, help='Early stopping patience (0=disabled). Stop if val WAR not improved for N epochs.')
 
 # --- Loss & Imbalance Handling ---
 loss_group = parser.add_argument_group('Loss & Imbalance Handling', 'Parameters for loss functions and imbalance handling')
@@ -193,6 +194,7 @@ def run_training(args: argparse.Namespace) -> None:
     best_train_war = 0.0
     best_val_uar = 0.0
     best_val_war = 0.0
+    epochs_without_improvement = 0
 
     start_epoch = 0
     
@@ -442,6 +444,17 @@ def run_training(args: argparse.Namespace) -> None:
         print(log_msg)
         with open(log_txt_path, 'a') as f:
             f.write(log_msg + '\n\n')
+
+        # Early stopping check
+        if args.early_stop > 0:
+            if is_best:
+                epochs_without_improvement = 0
+            else:
+                epochs_without_improvement += 1
+            if epochs_without_improvement >= args.early_stop:
+                print(f"\n*** Early stopping triggered after {args.early_stop} epochs without improvement ***")
+                print(f"Best Valid WAR: {best_val_war:.2f}%")
+                break
 
     # Final evaluation with best model
     print("=> Final evaluation on test set...")

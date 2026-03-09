@@ -166,3 +166,57 @@ class StudentEngagementDataset(data.Dataset):
     
     def __len__(self):
         return len(self.samples)
+
+
+class StudentEngagement6Dataset(StudentEngagementDataset):
+    """6-class version: confused(0), engaged(1), frustrated(2), looking_away(3), bored(4), drowsy(5)"""
+    
+    # Fixed subclass → label mapping
+    SUBCLASS_MAP = {
+        'confused': 0, 'Confused': 0,
+        'engaged': 1, 'Engaged': 1,
+        'frustrated': 2, 'Frustrated': 2,
+        'looking away': 3, 'Looking away': 3, 'Looking Away': 3, 'lookingaway': 3,
+        'bored': 4, 'Bored': 4,
+        'drowsy': 5, 'Drowsy': 5,
+    }
+    
+    def _detect_classes(self, root_dir):
+        """Override: scan subclass folders instead of top-level."""
+        class_map = {}
+        # Walk through all subdirectories to find subclass folders
+        for parent in os.listdir(root_dir):
+            parent_path = os.path.join(root_dir, parent)
+            if not os.path.isdir(parent_path):
+                continue
+            for subclass in os.listdir(parent_path):
+                subclass_path = os.path.join(parent_path, subclass)
+                if not os.path.isdir(subclass_path):
+                    continue
+                # Match subclass name
+                matched = False
+                for name, label in self.SUBCLASS_MAP.items():
+                    if subclass.lower().strip() == name.lower():
+                        class_map[os.path.join(parent, subclass)] = label
+                        matched = True
+                        break
+                if not matched:
+                    print(f"Warning: Unknown subclass '{subclass}', skipping")
+        
+        print(f"6-class mapping: {class_map}")
+        return class_map
+    
+    def _scan_dataset(self):
+        """Override: class_map keys are relative paths like 'Engaged/confused'."""
+        samples = []
+        for rel_path, label in self.class_map.items():
+            full_path = os.path.join(self.root_dir, rel_path)
+            if not os.path.isdir(full_path):
+                print(f"Warning: Directory not found: {full_path}")
+                continue
+            for fname in os.listdir(full_path):
+                if fname.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
+                    fpath = os.path.join(full_path, fname)
+                    samples.append((fpath, label))
+        print(f"Total scanned (6-class): {len(samples)} images")
+        return samples

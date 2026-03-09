@@ -74,6 +74,11 @@ def get_class_info(args: argparse.Namespace) -> Tuple[list, list]:
         class_names_with_context = class_names_with_context_student_engagement
         class_descriptor = class_descriptor_student_engagement
         ensemble_prompts = prompt_ensemble_student_engagement
+    elif dataset_name == "StudentEngagement6":
+        class_names = class_names_student_engagement_6
+        class_names_with_context = class_names_with_context_student_engagement_6
+        class_descriptor = class_descriptor_student_engagement_6
+        ensemble_prompts = prompt_ensemble_student_engagement_6
     else:
         raise NotImplementedError(f"Dataset '{dataset_name}' is not implemented. Only CAER-S and DAiSEE are supported in this version.")
 
@@ -240,6 +245,44 @@ def build_dataloaders(args: argparse.Namespace) -> Tuple[torch.utils.data.DataLo
         )
         
         test_data = StudentEngagementDataset(
+            root_dir=args.root_dir,
+            mode='test',
+            num_segments=args.num_segments,
+            image_size=args.image_size
+        )
+        
+        train_loader = torch.utils.data.DataLoader(
+            train_data, batch_size=args.batch_size, shuffle=True,
+            num_workers=args.workers, pin_memory=True, drop_last=True
+        )
+        val_loader = torch.utils.data.DataLoader(
+            val_data, batch_size=args.batch_size, shuffle=False,
+            num_workers=args.workers, pin_memory=True
+        )
+        test_loader = torch.utils.data.DataLoader(
+            test_data, batch_size=args.batch_size, shuffle=False,
+            num_workers=args.workers, pin_memory=True
+        )
+        print(f"Total number of training samples: {len(train_data)}")
+        return train_loader, val_loader, test_loader
+
+    elif args.dataset.strip() == "StudentEngagement6":
+        print(f"=> Using StudentEngagement 6-class dataloader...")
+        from dataloader.student_engagement_dataloader import StudentEngagement6Dataset
+        
+        train_data = StudentEngagement6Dataset(
+            root_dir=args.root_dir,
+            mode='train',
+            num_segments=args.num_segments,
+            image_size=args.image_size
+        )
+        val_data = StudentEngagement6Dataset(
+            root_dir=args.root_dir,
+            mode='val',
+            num_segments=args.num_segments,
+            image_size=args.image_size
+        )
+        test_data = StudentEngagement6Dataset(
             root_dir=args.root_dir,
             mode='test',
             num_segments=args.num_segments,

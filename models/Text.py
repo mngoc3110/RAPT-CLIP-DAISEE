@@ -423,3 +423,74 @@ prompt_ensemble_student_engagement = [
         "A face showing signs of sleepiness and boredom, with the chin resting on hand and eyes half-closed."
     ]
 ]
+
+# ============================================================================
+# Student Engagement 6-Class (subclass level)
+# Classes: confused(0), engaged(1), frustrated(2), looking_away(3), bored(4), drowsy(5)
+# ============================================================================
+class_names_student_engagement_6 = [
+    "confused", "engaged", "frustrated", "looking away", "bored", "drowsy"
+]
+
+class_names_with_context_student_engagement_6 = [
+    "A confused student in an online class.",
+    "An engaged student in an online class.",
+    "A frustrated student in an online class.",
+    "A student looking away from the screen in an online class.",
+    "A bored student in an online class.",
+    "A drowsy student in an online class."
+]
+
+class_descriptor_student_engagement_6 = [
+    "A student shows confusion: furrowed brows, tilted head, puzzled expression while trying to understand content.",
+    "A student is engaged: focused eyes on screen, attentive posture, actively following the lesson.",
+    "A student shows frustration: tense expression, clenched jaw, visible stress while struggling with material.",
+    "A student is looking away: eyes directed elsewhere, head turned from screen, not paying attention.",
+    "A student is bored: blank stare, slouched posture, no interest or emotional response to content.",
+    "A student is drowsy: heavy eyelids, yawning, head drooping, struggling to stay awake."
+]
+
+prompt_ensemble_student_engagement_6 = [
+    [ # confused (0)
+        "A student's face with furrowed brows and a puzzled look, trying to understand the lesson.",
+        "A close-up of a confused face with squinted eyes and a tilted head during online class.",
+        "A student showing visible confusion with raised eyebrows and an uncertain expression.",
+        "A face with a perplexed expression, mouth slightly open, struggling to follow the content.",
+        "A student with a questioning look, brow creased, mentally processing difficult material."
+    ],
+    [ # engaged (1)
+        "A student with focused eyes looking directly at the screen, fully attentive to the lesson.",
+        "A close-up of an alert face with clear eyes and an interested expression during class.",
+        "A student showing active engagement with bright eyes and a slight nod of understanding.",
+        "A face with steady eye contact toward the camera, calm and concentrated expression.",
+        "A student with an attentive posture and focused gaze, absorbed in the lecture content."
+    ],
+    [ # frustrated (2)
+        "A student's face showing visible frustration with clenched jaw and tense expression.",
+        "A close-up of a frustrated face with narrowed eyes and a frown during online class.",
+        "A student showing stress and annoyance while struggling with the course material.",
+        "A face with pressed lips and an irritated look, frustrated by the difficulty of the content.",
+        "A student with a strained expression showing emotional distress during the lesson."
+    ],
+    [ # looking away (3)
+        "A student looking away from the screen, eyes directed to the side or at something else.",
+        "A close-up of a student with head turned, not facing the camera or screen at all.",
+        "A student whose gaze is directed elsewhere, completely distracted from the lesson.",
+        "A face turned to the side with eyes looking at something other than the class content.",
+        "A student not paying attention, looking down at phone or away from the computer."
+    ],
+    [ # bored (4)
+        "A student with a blank, expressionless face showing complete boredom during class.",
+        "A close-up of a bored face with glazed-over eyes and no interest in the lesson.",
+        "A student with chin resting on hand, staring blankly with a listless expression.",
+        "A face showing complete disinterest with half-open eyes and a flat expression.",
+        "A student with a vacant stare and slack facial muscles, mentally checked out of class."
+    ],
+    [ # drowsy (5)
+        "A student with heavy drooping eyelids, struggling to keep eyes open during class.",
+        "A close-up of a drowsy face mid-yawn with watery eyes during an online lesson.",
+        "A student with eyes nearly closed, head starting to drop from sleepiness.",
+        "A face showing extreme tiredness with slow blinking and a slack jaw.",
+        "A student fighting sleep with droopy eyes and nodding head during the lecture."
+    ]
+]
