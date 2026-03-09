@@ -182,41 +182,37 @@ class StudentEngagement6Dataset(StudentEngagementDataset):
     }
     
     def _detect_classes(self, root_dir):
-        """Override: scan subclass folders instead of top-level."""
+        """Override: find subclass folders at any depth."""
         class_map = {}
-        # Walk through all subdirectories to find subclass folders
-        for parent in os.listdir(root_dir):
-            parent_path = os.path.join(root_dir, parent)
-            if not os.path.isdir(parent_path):
-                continue
-            for subclass in os.listdir(parent_path):
-                subclass_path = os.path.join(parent_path, subclass)
-                if not os.path.isdir(subclass_path):
-                    continue
-                # Match subclass name
-                matched = False
-                for name, label in self.SUBCLASS_MAP.items():
-                    if subclass.lower().strip() == name.lower():
-                        class_map[os.path.join(parent, subclass)] = label
-                        matched = True
-                        break
-                if not matched:
-                    print(f"Warning: Unknown subclass '{subclass}', skipping")
+        for dirpath, dirnames, filenames in os.walk(root_dir):
+            basename = os.path.basename(dirpath)
+            for name, label in self.SUBCLASS_MAP.items():
+                if basename.lower().strip() == name.lower():
+                    # Use absolute path as key
+                    class_map[dirpath] = label
+                    break
         
-        print(f"6-class mapping: {class_map}")
+        if not class_map:
+            # Debug: show what we found
+            print(f"ERROR: No subclass folders found. Directory tree:")
+            for dirpath, dirnames, _ in os.walk(root_dir):
+                depth = dirpath.replace(root_dir, '').count(os.sep)
+                if depth <= 3:
+                    print(f"  {'  ' * depth}{os.path.basename(dirpath)}/")
+        
+        print(f"6-class mapping ({len(class_map)} folders): { {os.path.basename(k): v for k, v in class_map.items()} }")
         return class_map
     
     def _scan_dataset(self):
-        """Override: class_map keys are relative paths like 'Engaged/confused'."""
+        """Override: class_map keys are absolute paths to subclass folders."""
         samples = []
-        for rel_path, label in self.class_map.items():
-            full_path = os.path.join(self.root_dir, rel_path)
-            if not os.path.isdir(full_path):
-                print(f"Warning: Directory not found: {full_path}")
+        for folder_path, label in self.class_map.items():
+            if not os.path.isdir(folder_path):
+                print(f"Warning: Directory not found: {folder_path}")
                 continue
-            for fname in os.listdir(full_path):
+            for fname in os.listdir(folder_path):
                 if fname.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
-                    fpath = os.path.join(full_path, fname)
+                    fpath = os.path.join(folder_path, fname)
                     samples.append((fpath, label))
         print(f"Total scanned (6-class): {len(samples)} images")
         return samples
