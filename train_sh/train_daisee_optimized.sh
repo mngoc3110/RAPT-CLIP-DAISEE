@@ -75,6 +75,7 @@ python3 main.py \
   --mixup-alpha 0.0 \
   --use-amp \
   --grad-clip 1.0 \
-  --early-stop 5
+  --early-stop 5 \
+  --use-weighted-sampler
 
 echo "Training Finished!"
