@@ -34,7 +34,7 @@ fi
 
 python3 main.py \
   --mode train \
-  --exper-name DAiSEE_v6_ACC \
+  --exper-name DAiSEE_3class_v1 \
   --dataset DAiSEE \
   --gpu 0 \
   --epochs 30 \
@@ -64,8 +64,8 @@ python3 main.py \
   --class-specific-contexts True \
   --load_and_tune_prompt_learner True \
   --temperature 0.07 \
-  --loss-type evr \
-  --label-smoothing 0.0 \
+  --loss-type ce \
+  --label-smoothing 0.1 \
   --lambda_mi 0.1 \
   --lambda_dc 0.1 \
   --mi-warmup 3 \
