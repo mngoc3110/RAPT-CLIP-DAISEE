@@ -1,15 +1,14 @@
 #!/bin/bash
 
 # =============================================================================
-# Script Huấn Luyện DAiSEE v6 — Optimize for Accuracy (WAR)
-# Strategy: Match SOTA evaluation metric (accuracy, not UAR)
-# Changes:
-#   1. NO WeightedSampler — natural distribution → accuracy
-#   2. Multi-scale: Face=40% crop, Body=75% crop
-#   3. ldam-s = 3.0 (stronger gradient)
-#   4. lr-image-encoder = 2e-6 (backbone adaptation)
-#   5. TTA (flip averaging) built into validation
-#   6. is_best = val_war (accuracy) not val_uar
+# Script Huấn Luyện DAiSEE v7 — Fix Critical Bugs + Best Practices
+# Fixes:
+#   1. LDAM loss (s=2.0) thay CE cho imbalanced data
+#   2. BỎ WeightedSampler → tránh val distribution mismatch  
+#   3. Tắt MI/DC loss → tránh shape mismatch với prompt ensemble
+#   4. Thêm EMA → stabilize training metrics
+#   5. early-stop = 8 (đủ thời gian cho cosine schedule)
+#   6. Same-Crop (50%/50%) trong dataloader
 # =============================================================================
 
 DATASET_ROOT="/kaggle/input/datasets/mngochocsupham/daisee/DAiSEE_data"
@@ -24,7 +23,7 @@ if [ ! -d "$DATASET_ROOT" ]; then
     ANN_DIR="${DATASET_ROOT}/Labels"
 fi
 
-echo "Starting DAiSEE v6 (Accuracy Optimized) Training..."
+echo "Starting DAiSEE v7 (Bug-Fixed) Training..."
 echo "Dataset Root: $DATASET_ROOT"
 
 if [ ! -f "$ANN_DIR/TrainLabels.csv" ]; then
@@ -34,7 +33,7 @@ fi
 
 python3 main.py \
   --mode train \
-  --exper-name DAiSEE_3class_v1 \
+  --exper-name DAiSEE_3class_v7_fixed \
   --dataset DAiSEE \
   --gpu 0 \
   --epochs 30 \
@@ -47,7 +46,7 @@ python3 main.py \
   --lr-adapter 1e-4 \
   --weight-decay 0.01 \
   --scheduler cosine \
-  --warmup-epochs 2 \
+  --warmup-epochs 3 \
   --temporal-layers 2 \
   --num-segments 8 \
   --duration 1 \
@@ -64,18 +63,17 @@ python3 main.py \
   --class-specific-contexts True \
   --load_and_tune_prompt_learner True \
   --temperature 0.07 \
-  --loss-type ce \
+  --loss-type ldam \
+  --ldam-s 2.0 \
+  --ldam-max-m 0.5 \
   --label-smoothing 0.1 \
-  --lambda_mi 0.1 \
-  --lambda_dc 0.1 \
-  --mi-warmup 3 \
-  --mi-ramp 7 \
-  --dc-warmup 3 \
-  --dc-ramp 7 \
+  --lambda_mi 0.0 \
+  --lambda_dc 0.0 \
   --mixup-alpha 0.0 \
   --use-amp \
+  --use-ema \
+  --ema-decay 0.999 \
   --grad-clip 1.0 \
-  --early-stop 5 \
-  --use-weighted-sampler
+  --early-stop 8
 
 echo "Training Finished!"

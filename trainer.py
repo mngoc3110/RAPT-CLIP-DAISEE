@@ -42,6 +42,10 @@ class Trainer:
         self.loss_type = loss_type
         print(f"DEBUG: Trainer initialized with use_ldl={use_ldl}, ldl_warmup={ldl_warmup}, loss_type={loss_type}")
         
+        # AMP only supported on CUDA; disable automatically on MPS/CPU
+        if self.use_amp and not torch.cuda.is_available():
+            print("[Trainer] WARNING: use_amp=True but CUDA not available. Disabling AMP.")
+            self.use_amp = False
         if self.use_amp:
             self.scaler = torch.cuda.amp.GradScaler()
         
@@ -143,7 +147,7 @@ class Trainer:
                 if is_train and self.mixup_alpha > 0:
                     images_face, images_body, target_b, lam = self.mixup_data(images_face, images_body, target, self.mixup_alpha)
 
-                with torch.cuda.amp.autocast(enabled=self.use_amp):
+                with torch.amp.autocast(device_type='cuda' if torch.cuda.is_available() else 'cpu', enabled=self.use_amp):
                     # Forward pass
                     output, learnable_text_features, hand_crafted_text_features, moco_logits = self.model(images_face, images_body)
                     
@@ -327,7 +331,7 @@ class Trainer:
                 images_body = images_body.to(self.device)
                 target = target.to(self.device)
                 
-                with torch.cuda.amp.autocast(enabled=self.use_amp):
+                with torch.amp.autocast(device_type='cuda' if torch.cuda.is_available() else 'cpu', enabled=self.use_amp):
                     # Original
                     output_orig, _, _, _ = self.model(images_face, images_body)
                     # Horizontal flip
