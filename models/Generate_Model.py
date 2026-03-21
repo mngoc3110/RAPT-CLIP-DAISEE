@@ -51,14 +51,14 @@ class GenerateModel(nn.Module):
         self.register_buffer("hand_crafted_prompt_embeddings", embedding)
 
 
-        self.temporal_net = Temporal_Transformer_AttnPool(num_patches=16,
+        self.temporal_net = Temporal_Transformer_AttnPool(num_patches=args.num_segments,
                                                      input_dim=512,
                                                      depth=args.temporal_layers,
                                                      heads=8,
                                                      mlp_dim=1024,
                                                      dim_head=64)
         
-        self.temporal_net_body = Temporal_Transformer_AttnPool(num_patches=16,
+        self.temporal_net_body = Temporal_Transformer_AttnPool(num_patches=args.num_segments,
                                                      input_dim=512,
                                                      depth=args.temporal_layers,
                                                      heads=8,
@@ -180,7 +180,7 @@ class GenerateModel(nn.Module):
         tokenized_prompts = self.tokenized_prompts
         
         # FORCE FP32 for Text Encoder to avoid NaN on MPS
-        with torch.cuda.amp.autocast(enabled=False):
+        with torch.amp.autocast('cuda', enabled=False):
             # Text Encoder might contain layers incompatible with AMP on MPS or just unstable
             text_features = self.text_encoder(prompts, tokenized_prompts)
             # Robust normalization
@@ -191,7 +191,7 @@ class GenerateModel(nn.Module):
         hand_crafted_prompts = self.hand_crafted_prompt_embeddings
         tokenized_hand_crafted_prompts = self.tokenized_hand_crafted_prompts.to(hand_crafted_prompts.device)
         
-        with torch.cuda.amp.autocast(enabled=False):
+        with torch.amp.autocast('cuda', enabled=False):
             hand_crafted_text_features = self.text_encoder(hand_crafted_prompts, tokenized_hand_crafted_prompts)
             hand_crafted_text_features = hand_crafted_text_features.float()
             # Robust normalization

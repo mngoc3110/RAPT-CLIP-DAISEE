@@ -87,6 +87,7 @@ optim_group.add_argument('--scheduler', type=str, default='multistep', choices=[
 optim_group.add_argument('--warmup-epochs', type=int, default=3, help='Number of warmup epochs for cosine scheduler.')
 optim_group.add_argument('--use-ema', action='store_true', help='Use Exponential Moving Average of model weights.')
 optim_group.add_argument('--ema-decay', type=float, default=0.999, help='EMA decay rate.')
+optim_group.add_argument('--ema-start-epoch', type=int, default=3, help='Epoch to start applying EMA to validation (0=immediately). Delay prevents collapse when EMA≈init.')
 optim_group.add_argument('--use-random-erasing', action='store_true', help='Use RandomErasing augmentation on body branch.')
 optim_group.add_argument('--early-stop', type=int, default=0, help='Early stopping patience (0=disabled). Stop if val WAR not improved for N epochs.')
 
@@ -390,22 +391,23 @@ def run_training(args: argparse.Namespace) -> None:
         # Train & Validate
         train_war, train_uar, train_los, train_cm = trainer.train_epoch(train_loader, epoch)
 
-        # Update EMA after each epoch
-        if ema is not None:
+        # Update EMA after each epoch (only after ema_start_epoch)
+        ema_start_epoch = getattr(args, 'ema_start_epoch', args.warmup_epochs)
+        if ema is not None and epoch >= ema_start_epoch:
             ema.update(model)
 
-        # Validate with EMA weights if available
-        if ema is not None:
+        # Validate with EMA weights if available AND past start epoch
+        if ema is not None and epoch >= ema_start_epoch:
             ema.apply(model)
         val_war, val_uar, val_los, val_cm = trainer.validate(val_loader, str(epoch))
-        if ema is not None:
+        if ema is not None and epoch >= ema_start_epoch:
             ema.restore(model)
 
         # TTA validation (flip averaging)
-        if ema is not None:
+        if ema is not None and epoch >= ema_start_epoch:
             ema.apply(model)
         tta_war, tta_uar, _, tta_cm = trainer.validate_with_tta(val_loader, str(epoch))
-        if ema is not None:
+        if ema is not None and epoch >= ema_start_epoch:
             ema.restore(model)
         
         # Use the better WAR (regular vs TTA)

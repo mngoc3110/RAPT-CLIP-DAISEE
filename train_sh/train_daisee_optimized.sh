@@ -1,14 +1,13 @@
 #!/bin/bash
 
 # =============================================================================
-# Script Huấn Luyện DAiSEE v7 — Fix Critical Bugs + Best Practices
-# Fixes:
-#   1. LDAM loss (s=2.0) thay CE cho imbalanced data
-#   2. BỎ WeightedSampler → tránh val distribution mismatch  
-#   3. Tắt MI/DC loss → tránh shape mismatch với prompt ensemble
-#   4. Thêm EMA → stabilize training metrics
-#   5. early-stop = 8 (đủ thời gian cho cosine schedule)
-#   6. Same-Crop (50%/50%) trong dataloader
+# Script Huấn Luyện DAiSEE v8 — Fix EMA Collapse
+# Strategy:
+#   1. LDAM s=2.0 cho imbalanced data
+#   2. Bỏ WeightedSampler → tránh val distribution mismatch
+#   3. EMA decay=0.99 (nhanh hơn 0.999 để track training weights)
+#   4. ema-start-epoch=5 → không dùng EMA ở epoch đầu (tránh collapse all→class0)
+#   5. Same-Crop 50/50 trong dataloader
 # =============================================================================
 
 DATASET_ROOT="/kaggle/input/datasets/mngochocsupham/daisee/DAiSEE_data"
@@ -23,7 +22,7 @@ if [ ! -d "$DATASET_ROOT" ]; then
     ANN_DIR="${DATASET_ROOT}/Labels"
 fi
 
-echo "Starting DAiSEE v7 (Bug-Fixed) Training..."
+echo "Starting DAiSEE v8 (EMA-Fixed) Training..."
 echo "Dataset Root: $DATASET_ROOT"
 
 if [ ! -f "$ANN_DIR/TrainLabels.csv" ]; then
@@ -33,7 +32,7 @@ fi
 
 python3 main.py \
   --mode train \
-  --exper-name DAiSEE_3class_v7_fixed \
+  --exper-name DAiSEE_3class_v8_ema_fixed \
   --dataset DAiSEE \
   --gpu 0 \
   --epochs 30 \
@@ -72,7 +71,8 @@ python3 main.py \
   --mixup-alpha 0.0 \
   --use-amp \
   --use-ema \
-  --ema-decay 0.999 \
+  --ema-decay 0.99 \
+  --ema-start-epoch 5 \
   --grad-clip 1.0 \
   --early-stop 8
 
