@@ -177,13 +177,15 @@ def build_dataloaders(args: argparse.Namespace) -> Tuple[torch.utils.data.DataLo
         print(f"=> Using DAiSEE specific dataloader...")
         from dataloader.daisee_dataloader import DAiSEEDataset
         
+        max_samples = getattr(args, 'max_samples_per_class', 0)
         train_data = DAiSEEDataset(
             root_dir=args.root_dir,
             annotation_file=train_annotation_file_path,
             mode='train',
             num_segments=args.num_segments,
             duration=args.duration,
-            image_size=args.image_size
+            image_size=args.image_size,
+            max_samples_per_class=max_samples
         )
         
         val_data = DAiSEEDataset(

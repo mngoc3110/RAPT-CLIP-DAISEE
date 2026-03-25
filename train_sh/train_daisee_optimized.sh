@@ -1,14 +1,13 @@
 #!/bin/bash
 
 # =============================================================================
-# Script Huấn Luyện DAiSEE v9 — Fix Class Imbalance Collapse
-# Root cause: Class 0 (Low=247 mẫu) bị ignore hoàn toàn
-# Fixes:
-#   1. Focal Loss (gamma=2.0) + class weights tự động → penalize majority
-#   2. WeightedSampler → oversample class 0 lên Equal frequency
-#   3. EMA reinit từ trained model tại ema_start_epoch (không dùng random init)
-#   4. early-stop=10 (nhiều epoch hơn để hội tụ)
-#   5. ldam-s bỏ, dùng focal-gamma=2.0
+# Script Huấn Luyện DAiSEE v10 — Undersampling Majority Classes
+# Strategy:
+#   1. Undersample High(2617→750) và VeryHigh(2494→750) xuống ngang Low(247)
+#      → Tỉ lệ mới: [247, 750, 750] - cân bằng hơn nhiều
+#   2. Focal Loss (gamma=2.0) + auto class weights (double coverage)
+#   3. EMA reinit từ trained model tại ema_start_epoch=5
+#   4. BỎ WeightedSampler (không cần thiết khi đã undersample)
 # =============================================================================
 
 DATASET_ROOT="/kaggle/input/datasets/mngochocsupham/daisee/DAiSEE_data"
@@ -23,7 +22,7 @@ if [ ! -d "$DATASET_ROOT" ]; then
     ANN_DIR="${DATASET_ROOT}/Labels"
 fi
 
-echo "Starting DAiSEE v9 (Imbalance-Fixed) Training..."
+echo "Starting DAiSEE v10 (Undersampling) Training..."
 echo "Dataset Root: $DATASET_ROOT"
 
 if [ ! -f "$ANN_DIR/TrainLabels.csv" ]; then
@@ -33,7 +32,7 @@ fi
 
 python3 main.py \
   --mode train \
-  --exper-name DAiSEE_3class_v9_focal \
+  --exper-name DAiSEE_3class_v10_undersample \
   --dataset DAiSEE \
   --gpu 0 \
   --epochs 30 \
@@ -69,7 +68,7 @@ python3 main.py \
   --lambda_mi 0.0 \
   --lambda_dc 0.0 \
   --mixup-alpha 0.0 \
-  --use-weighted-sampler \
+  --max-samples-per-class 750 \
   --use-amp \
   --use-ema \
   --ema-decay 0.99 \

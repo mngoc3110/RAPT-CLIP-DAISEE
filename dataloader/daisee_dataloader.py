@@ -15,7 +15,7 @@ CLIP_MEAN = [0.48145466, 0.4578275, 0.40821073]
 CLIP_STD = [0.26862954, 0.26130258, 0.27577711]
 
 class DAiSEEDataset(data.Dataset):
-    def __init__(self, root_dir, annotation_file, mode='train', num_segments=16, duration=1, image_size=224):
+    def __init__(self, root_dir, annotation_file, mode='train', num_segments=16, duration=1, image_size=224, max_samples_per_class=0):
         self.root_dir = root_dir
         self.annotation_file = annotation_file
         self.mode = mode
@@ -23,7 +23,8 @@ class DAiSEEDataset(data.Dataset):
         self.duration = duration
         self.image_size = image_size
         self.label_col = 'Engagement' 
-        self.frame_cache = {} 
+        self.frame_cache = {}
+        self.max_samples_per_class = max_samples_per_class  # 0 = no cap
         
         self.samples = self._make_dataset()
         
@@ -78,6 +79,23 @@ class DAiSEEDataset(data.Dataset):
             label = label_map[label]
             clip_dir = os.path.join(self.root_dir, 'DataSet', split_dir, subject_id, clip_id)
             samples.append((clip_dir, label, clip_id_ext))
+
+        # Undersample majority classes (training only)
+        if self.mode == 'train' and self.max_samples_per_class > 0:
+            from collections import defaultdict
+            per_class = defaultdict(list)
+            for s in samples:
+                per_class[s[1]].append(s)
+            samples = []
+            for cls_idx in sorted(per_class.keys()):
+                cls_samples = per_class[cls_idx]
+                if len(cls_samples) > self.max_samples_per_class:
+                    random.shuffle(cls_samples)
+                    cls_samples = cls_samples[:self.max_samples_per_class]
+                samples.extend(cls_samples)
+            random.shuffle(samples)
+            class_counts = {i: sum(1 for s in samples if s[1]==i) for i in sorted(per_class.keys())}
+            print(f"DAiSEE ({self.mode}): After undersampling → {class_counts}")
 
         print(f"DAiSEE ({self.mode}): Loaded {len(samples)} samples.")
         return samples
@@ -249,11 +267,11 @@ class DAiSEEDataset(data.Dataset):
     def __len__(self):
         return len(self.samples)
 
-def daisee_train_data_loader(root_dir, list_file, num_segments, duration, image_size, bounding_box_face, bounding_box_body, crop_body=False, num_classes=4):
-    dataset = DAiSEEDataset(root_dir, list_file, mode='train', num_segments=num_segments, duration=duration, image_size=image_size)
+def daisee_train_data_loader(root_dir, list_file, num_segments, duration, image_size, bounding_box_face, bounding_box_body, crop_body=False, num_classes=4, max_samples_per_class=0):
+    dataset = DAiSEEDataset(root_dir, list_file, mode='train', num_segments=num_segments, duration=duration, image_size=image_size, max_samples_per_class=max_samples_per_class)
     return dataset
 
-def daisee_test_data_loader(root_dir, list_file, num_segments, duration, image_size, bounding_box_face, bounding_box_body, crop_body=False, num_classes=4):
+def daisee_test_data_loader(root_dir, list_file, num_segments, duration, image_size, bounding_box_face, bounding_box_body, crop_body=False, num_classes=4, max_samples_per_class=0):
     dataset = DAiSEEDataset(root_dir, list_file, mode='test', num_segments=num_segments, duration=duration, image_size=image_size)
     return dataset
 

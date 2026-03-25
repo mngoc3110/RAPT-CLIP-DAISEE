@@ -102,6 +102,7 @@ loss_group.add_argument('--mi-ramp', type=int, default=10, help='Ramp-up epochs 
 loss_group.add_argument('--dc-warmup', type=int, default=5, help='Warmup epochs for DC loss.')
 loss_group.add_argument('--dc-ramp', type=int, default=10, help='Ramp-up epochs for DC loss.')
 loss_group.add_argument('--use-weighted-sampler', action='store_true', help='Use WeightedRandomSampler.')
+loss_group.add_argument('--max-samples-per-class', type=int, default=0, help='Undersample majority classes to this max per class (0=no cap, train only).')
 loss_group.add_argument('--label-smoothing', type=float, default=0.05, help='Label smoothing factor.')
 loss_group.add_argument('--use-ldl', action='store_true', help='Use Semantic Label Distribution Learning (LDL) Loss.')
 loss_group.add_argument('--ldl-temperature', type=float, default=1.0, help='Temperature for LDL target distribution.')
