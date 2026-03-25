@@ -393,6 +393,11 @@ def run_training(args: argparse.Namespace) -> None:
 
         # Update EMA after each epoch (only after ema_start_epoch)
         ema_start_epoch = getattr(args, 'ema_start_epoch', args.warmup_epochs)
+        if ema is not None and epoch == ema_start_epoch:
+            # Reinitialize EMA from the TRAINED model (not from random init)
+            from utils.ema import ModelEMA
+            ema = ModelEMA(model, decay=args.ema_decay)
+            print(f"=> EMA reinitialized from trained model at epoch {epoch}")
         if ema is not None and epoch >= ema_start_epoch:
             ema.update(model)
 

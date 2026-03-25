@@ -1,13 +1,14 @@
 #!/bin/bash
 
 # =============================================================================
-# Script Huấn Luyện DAiSEE v8 — Fix EMA Collapse
-# Strategy:
-#   1. LDAM s=2.0 cho imbalanced data
-#   2. Bỏ WeightedSampler → tránh val distribution mismatch
-#   3. EMA decay=0.99 (nhanh hơn 0.999 để track training weights)
-#   4. ema-start-epoch=5 → không dùng EMA ở epoch đầu (tránh collapse all→class0)
-#   5. Same-Crop 50/50 trong dataloader
+# Script Huấn Luyện DAiSEE v9 — Fix Class Imbalance Collapse
+# Root cause: Class 0 (Low=247 mẫu) bị ignore hoàn toàn
+# Fixes:
+#   1. Focal Loss (gamma=2.0) + class weights tự động → penalize majority
+#   2. WeightedSampler → oversample class 0 lên Equal frequency
+#   3. EMA reinit từ trained model tại ema_start_epoch (không dùng random init)
+#   4. early-stop=10 (nhiều epoch hơn để hội tụ)
+#   5. ldam-s bỏ, dùng focal-gamma=2.0
 # =============================================================================
 
 DATASET_ROOT="/kaggle/input/datasets/mngochocsupham/daisee/DAiSEE_data"
@@ -22,7 +23,7 @@ if [ ! -d "$DATASET_ROOT" ]; then
     ANN_DIR="${DATASET_ROOT}/Labels"
 fi
 
-echo "Starting DAiSEE v8 (EMA-Fixed) Training..."
+echo "Starting DAiSEE v9 (Imbalance-Fixed) Training..."
 echo "Dataset Root: $DATASET_ROOT"
 
 if [ ! -f "$ANN_DIR/TrainLabels.csv" ]; then
@@ -32,7 +33,7 @@ fi
 
 python3 main.py \
   --mode train \
-  --exper-name DAiSEE_3class_v8_ema_fixed \
+  --exper-name DAiSEE_3class_v9_focal \
   --dataset DAiSEE \
   --gpu 0 \
   --epochs 30 \
@@ -62,18 +63,18 @@ python3 main.py \
   --class-specific-contexts True \
   --load_and_tune_prompt_learner True \
   --temperature 0.07 \
-  --loss-type ldam \
-  --ldam-s 2.0 \
-  --ldam-max-m 0.5 \
-  --label-smoothing 0.1 \
+  --loss-type focal \
+  --focal-gamma 2.0 \
+  --label-smoothing 0.05 \
   --lambda_mi 0.0 \
   --lambda_dc 0.0 \
   --mixup-alpha 0.0 \
+  --use-weighted-sampler \
   --use-amp \
   --use-ema \
   --ema-decay 0.99 \
   --ema-start-epoch 5 \
   --grad-clip 1.0 \
-  --early-stop 8
+  --early-stop 10
 
 echo "Training Finished!"
