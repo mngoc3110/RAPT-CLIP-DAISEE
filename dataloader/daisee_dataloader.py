@@ -29,7 +29,8 @@ class DAiSEEDataset(data.Dataset):
         self.samples = self._make_dataset()
         
         if mode == 'train':
-            self._color_jitter = transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.2)
+            # Mild ColorJitter (applied consistently to all frames in a video)
+            self._color_jitter = transforms.ColorJitter(brightness=0.15, contrast=0.15, saturation=0.1)
             self.group_transform = transforms.Compose([
                 GroupResize(image_size),
                 GroupRandomHorizontalFlip(),
@@ -117,20 +118,20 @@ class DAiSEEDataset(data.Dataset):
                 offsets = np.pad(np.array(list(range(num_frames))), (0, self.num_segments - num_frames), "edge")
         return offsets
 
-    def _center_crop_face(self, img_pil, crop_ratio=0.5):
-        """Crop center of frame to focus on face area. Adds random jitter during training."""
-        w, h = img_pil.size
+    def _get_crop_params(self, w, h, crop_ratio):
+        """Generate crop parameters. During training, adds random jitter.
+        Returns (left, top, crop_w, crop_h) — CONSISTENT for all frames in a video."""
         crop_w = int(w * crop_ratio)
         crop_h = int(h * crop_ratio)
         
         if self.mode == 'train':
-            # Random jitter: ±15% offset from center
-            max_jitter_x = int(w * 0.15)
-            max_jitter_y = int(h * 0.15)
+            # Random jitter: ±10% offset from center (reduced from 15%)
+            max_jitter_x = int(w * 0.10)
+            max_jitter_y = int(h * 0.10)
             jitter_x = random.randint(-max_jitter_x, max_jitter_x)
             jitter_y = random.randint(-max_jitter_y, max_jitter_y)
-            # Random scale: 90-110% of crop_ratio
-            scale = random.uniform(0.9, 1.1)
+            # Random scale: 95-105% of crop_ratio (tighter than before)
+            scale = random.uniform(0.95, 1.05)
             crop_w = min(int(crop_w * scale), w)
             crop_h = min(int(crop_h * scale), h)
             left = max(0, min((w - crop_w) // 2 + jitter_x, w - crop_w))
@@ -139,10 +140,43 @@ class DAiSEEDataset(data.Dataset):
             left = (w - crop_w) // 2
             top = (h - crop_h) // 2
         
+        return left, top, crop_w, crop_h
+
+    def _apply_crop(self, img_pil, crop_params):
+        """Apply pre-computed crop parameters to an image."""
+        left, top, crop_w, crop_h = crop_params
         return img_pil.crop((left, top, left + crop_w, top + crop_h))
 
-    def _load_frames_from_video(self, video_path, indices):
-        """Read specific frames from video file."""
+    def _apply_consistent_color_jitter(self, images):
+        """Apply the SAME color jitter transform to ALL frames in a video.
+        This preserves temporal coherence while still providing augmentation."""
+        if not images:
+            return images
+        # Get the transform parameters once
+        fn_idx, brightness_factor, contrast_factor, saturation_factor, hue_factor = \
+            transforms.ColorJitter.get_params(
+                self._color_jitter.brightness,
+                self._color_jitter.contrast,
+                self._color_jitter.saturation,
+                self._color_jitter.hue
+            )
+        # Apply the same transform to all frames
+        result = []
+        for img in images:
+            for fn_id in fn_idx:
+                if fn_id == 0 and brightness_factor is not None:
+                    img = transforms.functional.adjust_brightness(img, brightness_factor)
+                elif fn_id == 1 and contrast_factor is not None:
+                    img = transforms.functional.adjust_contrast(img, contrast_factor)
+                elif fn_id == 2 and saturation_factor is not None:
+                    img = transforms.functional.adjust_saturation(img, saturation_factor)
+                elif fn_id == 3 and hue_factor is not None:
+                    img = transforms.functional.adjust_hue(img, hue_factor)
+            result.append(img)
+        return result
+
+    def _load_frames_from_video(self, video_path, indices, face_crop_params, body_crop_params):
+        """Read specific frames from video file with consistent crop params."""
         face_images = []
         body_images = []
         cap = cv2.VideoCapture(video_path)
@@ -158,8 +192,8 @@ class DAiSEEDataset(data.Dataset):
                 if ret and frame is not None:
                     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                     img_pil = Image.fromarray(frame_rgb)
-                    face_images.append(self._center_crop_face(img_pil, 0.5))  # Face: tight center crop
-                    body_images.append(self._center_crop_face(img_pil, 0.9))  # Body: wide context crop
+                    face_images.append(self._apply_crop(img_pil, face_crop_params))
+                    body_images.append(img_pil)  # Full frame for body
                 else:
                     blank = Image.new('RGB', (self.image_size, self.image_size))
                     face_images.append(blank)
@@ -211,19 +245,36 @@ class DAiSEEDataset(data.Dataset):
         face_images = []
         body_images = []
         
+        # Pre-compute crop params ONCE for the entire video (temporal consistency)
+        # We need at least one frame's dimensions to compute crop params.
+        # Use a reference dimension (DAiSEE videos are typically 640x480)
+        ref_w, ref_h = 640, 480  # default, will be updated from first frame
+        
         if source_type == 'frames':
             _, frames_path, frame_files = cache_entry
             num_frames = len(frame_files)
             if num_frames <= 0:
                 return blank_return
+            
+            # Get actual frame dimensions from first frame
+            try:
+                first_img = Image.open(os.path.join(frames_path, frame_files[0]))
+                ref_w, ref_h = first_img.size
+                first_img.close()
+            except:
+                pass
+            
+            # Generate consistent crop params for this video
+            face_crop_params = self._get_crop_params(ref_w, ref_h, 0.5)
+            
             indices = self._get_indices(num_frames)
             for seg_ind in indices:
                 p = min(int(seg_ind), num_frames - 1)
                 for _ in range(self.duration):
                     try:
                         img_pil = Image.open(os.path.join(frames_path, frame_files[p])).convert('RGB')
-                        face_images.append(self._center_crop_face(img_pil, 0.5))  # Face: tight center crop
-                        body_images.append(self._center_crop_face(img_pil, 0.9))  # Body: wide context crop
+                        face_images.append(self._apply_crop(img_pil, face_crop_params))
+                        body_images.append(img_pil)  # Full frame for body
                     except:
                         blank = Image.new('RGB', (self.image_size, self.image_size))
                         face_images.append(blank)
@@ -235,18 +286,29 @@ class DAiSEEDataset(data.Dataset):
             _, video_path, num_frames = cache_entry
             if num_frames <= 0:
                 return blank_return
+            
+            # Get actual frame dimensions
+            cap = cv2.VideoCapture(video_path)
+            if cap.isOpened():
+                ref_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)) or ref_w
+                ref_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)) or ref_h
+                cap.release()
+            
+            # Generate consistent crop params for this video
+            face_crop_params = self._get_crop_params(ref_w, ref_h, 0.5)
+            
             indices = self._get_indices(num_frames)
-            face_images, body_images = self._load_frames_from_video(video_path, indices)
+            face_images, body_images = self._load_frames_from_video(video_path, indices, face_crop_params, None)
         else:
             return blank_return
         
         if not face_images:
             return blank_return
 
-        # Apply per-frame ColorJitter during training (before Stack)
+        # Apply CONSISTENT ColorJitter during training (same params for all frames)
         if self.mode == 'train' and hasattr(self, '_color_jitter'):
-            face_images = [self._color_jitter(img) for img in face_images]
-            body_images = [self._color_jitter(img) for img in body_images]
+            face_images = self._apply_consistent_color_jitter(face_images)
+            body_images = self._apply_consistent_color_jitter(body_images)
 
         # Apply same group transforms to both streams
         process_face = self.group_transform(face_images)
