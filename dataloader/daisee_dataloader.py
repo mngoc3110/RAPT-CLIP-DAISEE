@@ -80,7 +80,11 @@ class DAiSEEDataset(data.Dataset):
                 # Merge to 3 classes: VeryLow(0)+Low(1) → 0, High(2) → 1, VeryHigh(3) → 2
                 label_map = {0: 0, 1: 0, 2: 1, 3: 2}
                 label = label_map[label]
-            # else: keep original 4 levels (0=VeryLow, 1=Low, 2=High, 3=VeryHigh)
+            elif self.num_engagement_levels == 2:
+                # Binary: VeryLow(0)+Low(1) → 0 (Not Engaged), High(2)+VeryHigh(3) → 1 (Engaged)
+                label_map = {0: 0, 1: 0, 2: 1, 3: 1}
+                label = label_map[label]
+            # else (4): keep original 4 levels (0=VeryLow, 1=Low, 2=High, 3=VeryHigh)
             clip_dir = os.path.join(self.root_dir, 'DataSet', split_dir, subject_id, clip_id)
             samples.append((clip_dir, label, clip_id_ext))
 

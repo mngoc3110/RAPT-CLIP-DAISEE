@@ -445,6 +445,43 @@ prompt_ensemble_daisee_4level = [
 ]
 
 # ============================================================================
+# DAiSEE Binary (Not Engaged vs Engaged)
+# Merge: VeryLow(0)+Low(1) → 0 (Not Engaged), High(2)+VeryHigh(3) → 1 (Engaged)
+# ============================================================================
+class_names_daisee_binary = ['Not Engaged', 'Engaged']
+
+class_names_with_context_daisee_binary = [
+    "A student who is not engaged during an online class.",
+    "A student who is engaged during an online class."
+]
+
+class_descriptor_daisee_binary = [
+    "A student is not engaged: eyes closed or drooping, looking away, yawning, distracted, bored, or showing no interest in the lesson.",
+    "A student is engaged: eyes focused on screen, attentive expression, actively watching and following the online lesson content."
+]
+
+prompt_ensemble_daisee_binary = [
+    [ # Not Engaged (0)
+        "A close-up of a student's face with eyes closed or nearly closed, appearing to be asleep during class.",
+        "A face with heavy drooping eyelids and a slack jaw, dozing off in front of the screen.",
+        "A student's face with an unfocused bored expression, eyes half-open and glazed.",
+        "A student with eyes wandering around the room instead of looking at the screen.",
+        "A face showing a tired yawning expression with droopy eyes during an online class.",
+        "A student with a distracted look, eyes glancing to the side rather than at the camera.",
+        "A close-up showing a face with no eye contact, completely zoned out or barely paying attention."
+    ],
+    [ # Engaged (1)
+        "A close-up of a student's face looking directly at the screen with focused attentive eyes.",
+        "A student's face with steady eye contact toward the camera and a calm concentrated expression.",
+        "A face showing quiet concentration with relaxed features and eyes fixed ahead on the lesson.",
+        "A student with clear open eyes watching the screen attentively with a composed expression.",
+        "A student's face with raised eyebrows and bright eyes, deeply engaged in the lesson.",
+        "A face showing an animated expression of curiosity with widened eyes and interest.",
+        "A student with alert wide eyes showing intense focus and active intellectual engagement."
+    ]
+]
+
+# ============================================================================
 # Student Engagement Dataset (Binary: Engaged vs Not Engaged)
 # ============================================================================
 class_names_student_engagement = [

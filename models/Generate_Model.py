@@ -43,6 +43,9 @@ class GenerateModel(nn.Module):
         elif args.dataset == "DAiSEE4Level":
             from models.Text import class_descriptor_daisee_4level
             hand_crafted_prompts = class_descriptor_daisee_4level
+        elif args.dataset == "DAiSEEBinary":
+            from models.Text import class_descriptor_daisee_binary
+            hand_crafted_prompts = class_descriptor_daisee_binary
         elif args.dataset == "DAiSEE4Discrete":
             from models.Text import class_descriptor_daisee4
             hand_crafted_prompts = class_descriptor_daisee4
