@@ -15,7 +15,7 @@ CLIP_MEAN = [0.48145466, 0.4578275, 0.40821073]
 CLIP_STD = [0.26862954, 0.26130258, 0.27577711]
 
 class DAiSEEDataset(data.Dataset):
-    def __init__(self, root_dir, annotation_file, mode='train', num_segments=16, duration=1, image_size=224, max_samples_per_class=0):
+    def __init__(self, root_dir, annotation_file, mode='train', num_segments=16, duration=1, image_size=224, max_samples_per_class=0, num_engagement_levels=3):
         self.root_dir = root_dir
         self.annotation_file = annotation_file
         self.mode = mode
@@ -25,6 +25,7 @@ class DAiSEEDataset(data.Dataset):
         self.label_col = 'Engagement' 
         self.frame_cache = {}
         self.max_samples_per_class = max_samples_per_class  # 0 = no cap
+        self.num_engagement_levels = num_engagement_levels  # 3 = merged, 4 = original
         
         self.samples = self._make_dataset()
         
@@ -75,9 +76,11 @@ class DAiSEEDataset(data.Dataset):
             clip_id = os.path.splitext(clip_id_ext)[0]
             subject_id = clip_id[:6]
             label = int(row[self.label_col])
-            # Merge to 3 classes: VeryLow(0)+Low(1) → 0, High(2) → 1, VeryHigh(3) → 2
-            label_map = {0: 0, 1: 0, 2: 1, 3: 2}
-            label = label_map[label]
+            if self.num_engagement_levels == 3:
+                # Merge to 3 classes: VeryLow(0)+Low(1) → 0, High(2) → 1, VeryHigh(3) → 2
+                label_map = {0: 0, 1: 0, 2: 1, 3: 2}
+                label = label_map[label]
+            # else: keep original 4 levels (0=VeryLow, 1=Low, 2=High, 3=VeryHigh)
             clip_dir = os.path.join(self.root_dir, 'DataSet', split_dir, subject_id, clip_id)
             samples.append((clip_dir, label, clip_id_ext))
 
