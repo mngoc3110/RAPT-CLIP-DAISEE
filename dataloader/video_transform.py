@@ -429,3 +429,98 @@ class IdentityTransform(object):
 
     def __call__(self, data):
         return data
+
+
+class GroupRandomErasing(object):
+    """Apply RandomErasing to ALL frames with the SAME erased region.
+    
+    This preserves temporal consistency — the same patch is erased across
+    all frames in the video, forcing the model to rely on other regions.
+    
+    Applied AFTER conversion to tensor (operates on torch.Tensor).
+    
+    Args:
+        p (float): Probability of applying the erasing.
+        scale (tuple): Range of proportion of erased area.
+        ratio (tuple): Range of aspect ratio of erased area.
+        value (float): Erasing value (0 = black).
+    """
+    def __init__(self, p=0.15, scale=(0.02, 0.15), ratio=(0.3, 3.3), value=0):
+        self.p = p
+        self.scale = scale
+        self.ratio = ratio
+        self.value = value
+
+    def __call__(self, tensor):
+        """
+        Args:
+            tensor: (T*C, H, W) stacked tensor from Stack + ToTorchFormatTensor
+        Returns:
+            tensor with same region erased across all frames
+        """
+        if random.random() > self.p:
+            return tensor
+        
+        # tensor shape: (T*C, H, W) where T is num_segments and C=3
+        _, h, w = tensor.shape
+        area = h * w
+        
+        for _ in range(10):  # max 10 attempts
+            target_area = random.uniform(self.scale[0], self.scale[1]) * area
+            aspect_ratio = random.uniform(self.ratio[0], self.ratio[1])
+            
+            eh = int(round(math.sqrt(target_area * aspect_ratio)))
+            ew = int(round(math.sqrt(target_area / aspect_ratio)))
+            
+            if eh < h and ew < w:
+                top = random.randint(0, h - eh)
+                left = random.randint(0, w - ew)
+                # Apply to ALL frames (every 3 channels = 1 frame)
+                tensor[:, top:top+eh, left:left+ew] = self.value
+                return tensor
+        
+        return tensor
+
+
+class GroupGaussianBlur(object):
+    """Apply Gaussian blur to all frames in the group consistently.
+    
+    Same kernel size is used for all frames to preserve temporal consistency.
+    Applied at PIL Image level (before Stack).
+    
+    Args:
+        p (float): Probability of applying the blur.
+        kernel_range (tuple): Range of kernel sizes (must be odd numbers).
+    """
+    def __init__(self, p=0.1, kernel_range=(3, 7)):
+        self.p = p
+        self.kernel_range = kernel_range
+
+    def __call__(self, img_group):
+        if random.random() > self.p:
+            return img_group
+        
+        # Pick one kernel size for all frames
+        k = random.choice(range(self.kernel_range[0], self.kernel_range[1] + 1, 2))
+        
+        from PIL import ImageFilter
+        blur_filter = ImageFilter.GaussianBlur(radius=k // 2)
+        return [img.filter(blur_filter) for img in img_group]
+
+
+class GroupRandomGrayscale(object):
+    """Randomly convert all frames to grayscale (3-channel) consistently.
+    
+    When applied, ALL frames become grayscale to maintain temporal consistency.
+    
+    Args:
+        p (float): Probability of converting to grayscale.
+    """
+    def __init__(self, p=0.05):
+        self.p = p
+
+    def __call__(self, img_group):
+        if random.random() > self.p:
+            return img_group
+        
+        return [img.convert('L').convert('RGB') for img in img_group]

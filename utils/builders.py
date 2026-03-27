@@ -190,6 +190,9 @@ def build_dataloaders(args: argparse.Namespace) -> Tuple[torch.utils.data.DataLo
         from dataloader.daisee_dataloader import DAiSEEDataset
         
         max_samples = getattr(args, 'max_samples_per_class', 0)
+        use_face_det = getattr(args, 'use_face_detection', False)
+        temp_dropout = getattr(args, 'temporal_dropout', 0.0)
+        aug_strength = getattr(args, 'augment_strength', 'mild')
         train_data = DAiSEEDataset(
             root_dir=args.root_dir,
             annotation_file=train_annotation_file_path,
@@ -197,7 +200,10 @@ def build_dataloaders(args: argparse.Namespace) -> Tuple[torch.utils.data.DataLo
             num_segments=args.num_segments,
             duration=args.duration,
             image_size=args.image_size,
-            max_samples_per_class=max_samples
+            max_samples_per_class=max_samples,
+            use_face_detection=use_face_det,
+            temporal_dropout=temp_dropout,
+            augment_strength=aug_strength
         )
         
         val_data = DAiSEEDataset(
@@ -250,6 +256,9 @@ def build_dataloaders(args: argparse.Namespace) -> Tuple[torch.utils.data.DataLo
         from dataloader.daisee_dataloader import DAiSEEDataset
         
         max_samples = getattr(args, 'max_samples_per_class', 0)
+        use_face_det = getattr(args, 'use_face_detection', False)
+        temp_dropout = getattr(args, 'temporal_dropout', 0.0)
+        aug_strength = getattr(args, 'augment_strength', 'mild')
         train_data = DAiSEEDataset(
             root_dir=args.root_dir,
             annotation_file=train_annotation_file_path,
@@ -258,7 +267,10 @@ def build_dataloaders(args: argparse.Namespace) -> Tuple[torch.utils.data.DataLo
             duration=args.duration,
             image_size=args.image_size,
             max_samples_per_class=max_samples,
-            num_engagement_levels=4  # Use original 4 levels, no merge
+            num_engagement_levels=4,
+            use_face_detection=use_face_det,
+            temporal_dropout=temp_dropout,
+            augment_strength=aug_strength
         )
         
         val_data = DAiSEEDataset(
@@ -313,6 +325,9 @@ def build_dataloaders(args: argparse.Namespace) -> Tuple[torch.utils.data.DataLo
         from dataloader.daisee_dataloader import DAiSEEDataset
         
         max_samples = getattr(args, 'max_samples_per_class', 0)
+        use_face_det = getattr(args, 'use_face_detection', False)
+        temp_dropout = getattr(args, 'temporal_dropout', 0.0)
+        aug_strength = getattr(args, 'augment_strength', 'mild')
         train_data = DAiSEEDataset(
             root_dir=args.root_dir,
             annotation_file=train_annotation_file_path,
@@ -321,7 +336,10 @@ def build_dataloaders(args: argparse.Namespace) -> Tuple[torch.utils.data.DataLo
             duration=args.duration,
             image_size=args.image_size,
             max_samples_per_class=max_samples,
-            num_engagement_levels=2
+            num_engagement_levels=2,
+            use_face_detection=use_face_det,
+            temporal_dropout=temp_dropout,
+            augment_strength=aug_strength
         )
         
         val_data = DAiSEEDataset(
@@ -375,13 +393,19 @@ def build_dataloaders(args: argparse.Namespace) -> Tuple[torch.utils.data.DataLo
         print(f"=> Using DAiSEE 4-Discrete dataloader...")
         from dataloader.daisee_dataloader import DAiSEE4DiscreteDataset
         
+        use_face_det = getattr(args, 'use_face_detection', False)
+        temp_dropout = getattr(args, 'temporal_dropout', 0.0)
+        aug_strength = getattr(args, 'augment_strength', 'mild')
         train_data = DAiSEE4DiscreteDataset(
             root_dir=args.root_dir,
             annotation_file=train_annotation_file_path,
             mode='train',
             num_segments=args.num_segments,
             duration=args.duration,
-            image_size=args.image_size
+            image_size=args.image_size,
+            use_face_detection=use_face_det,
+            temporal_dropout=temp_dropout,
+            augment_strength=aug_strength
         )
         val_data = DAiSEE4DiscreteDataset(
             root_dir=args.root_dir,

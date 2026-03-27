@@ -8,14 +8,81 @@ from PIL import Image
 from torch.utils import data
 from torchvision import transforms
 from tqdm import tqdm
-from dataloader.video_transform import GroupResize, Stack, ToTorchFormatTensor, GroupRandomHorizontalFlip
+from dataloader.video_transform import (
+    GroupResize, Stack, ToTorchFormatTensor, GroupRandomHorizontalFlip,
+    GroupGaussianBlur, GroupRandomGrayscale, GroupRandomErasing
+)
 
 # CLIP normalization constants
 CLIP_MEAN = [0.48145466, 0.4578275, 0.40821073]
 CLIP_STD = [0.26862954, 0.26130258, 0.27577711]
 
+# ============================================================
+# OpenCV Haar Cascade for lightweight face detection
+# ============================================================
+_FACE_CASCADE = None
+
+def _get_face_cascade():
+    """Lazy-load the Haar Cascade face detector."""
+    global _FACE_CASCADE
+    if _FACE_CASCADE is None:
+        cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+        _FACE_CASCADE = cv2.CascadeClassifier(cascade_path)
+    return _FACE_CASCADE
+
+
+def detect_face_region(frame_bgr, fallback_ratio=0.5):
+    """Detect face bounding box using Haar Cascade.
+    
+    Returns (left, top, width, height) of the best face region,
+    or a center crop fallback if no face is detected.
+    
+    Args:
+        frame_bgr: BGR numpy array (H, W, 3)
+        fallback_ratio: crop ratio for center crop fallback
+    Returns:
+        (left, top, crop_w, crop_h) tuple
+    """
+    h, w = frame_bgr.shape[:2]
+    cascade = _get_face_cascade()
+    
+    # Convert to grayscale for detection
+    gray = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2GRAY)
+    faces = cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+    
+    if len(faces) > 0:
+        # Pick the largest face
+        areas = [fw * fh for (_, _, fw, fh) in faces]
+        best_idx = np.argmax(areas)
+        fx, fy, fw, fh = faces[best_idx]
+        
+        # Expand the face region by 40% on each side for context
+        expand = 0.4
+        cx, cy = fx + fw // 2, fy + fh // 2
+        new_w = int(fw * (1 + 2 * expand))
+        new_h = int(fh * (1 + 2 * expand))
+        
+        left = max(0, cx - new_w // 2)
+        top = max(0, cy - new_h // 2)
+        crop_w = min(new_w, w - left)
+        crop_h = min(new_h, h - top)
+        
+        return (left, top, crop_w, crop_h)
+    
+    # Fallback: center crop
+    crop_w = int(w * fallback_ratio)
+    crop_h = int(h * fallback_ratio)
+    left = (w - crop_w) // 2
+    top = (h - crop_h) // 2
+    return (left, top, crop_w, crop_h)
+
+
 class DAiSEEDataset(data.Dataset):
-    def __init__(self, root_dir, annotation_file, mode='train', num_segments=16, duration=1, image_size=224, max_samples_per_class=0, num_engagement_levels=3):
+    def __init__(self, root_dir, annotation_file, mode='train', num_segments=16, 
+                 duration=1, image_size=224, max_samples_per_class=0, 
+                 num_engagement_levels=3,
+                 use_face_detection=False, temporal_dropout=0.0,
+                 augment_strength='mild'):
         self.root_dir = root_dir
         self.annotation_file = annotation_file
         self.mode = mode
@@ -27,17 +94,42 @@ class DAiSEEDataset(data.Dataset):
         self.max_samples_per_class = max_samples_per_class  # 0 = no cap
         self.num_engagement_levels = num_engagement_levels  # 3 = merged, 4 = original
         
+        # === SOTA enhancements ===
+        self.use_face_detection = use_face_detection
+        self.temporal_dropout = temporal_dropout  # e.g., 0.15 = drop 15% frames
+        self.augment_strength = augment_strength  # 'mild' or 'strong'
+        
+        # Multi-scale crop ratios (SOTA technique from EfficientNet+TCN papers)
+        self.crop_ratios = [0.4, 0.5, 0.6] if mode == 'train' else [0.5]
+        
         self.samples = self._make_dataset()
         
         if mode == 'train':
-            # Mild ColorJitter (applied consistently to all frames in a video)
-            self._color_jitter = transforms.ColorJitter(brightness=0.15, contrast=0.15, saturation=0.1)
-            self.group_transform = transforms.Compose([
-                GroupResize(image_size),
-                GroupRandomHorizontalFlip(),
-                Stack(),
-                ToTorchFormatTensor(),
-            ])
+            if augment_strength == 'strong':
+                # SOTA-level augmentation
+                self._color_jitter = transforms.ColorJitter(
+                    brightness=0.2, contrast=0.2, saturation=0.15, hue=0.05
+                )
+                self.group_transform = transforms.Compose([
+                    GroupGaussianBlur(p=0.1, kernel_range=(3, 7)),
+                    GroupRandomGrayscale(p=0.05),
+                    GroupResize(image_size),
+                    GroupRandomHorizontalFlip(),
+                    Stack(),
+                    ToTorchFormatTensor(),
+                    GroupRandomErasing(p=0.15, scale=(0.02, 0.15)),
+                ])
+            else:
+                # Original mild augmentation
+                self._color_jitter = transforms.ColorJitter(
+                    brightness=0.15, contrast=0.15, saturation=0.1
+                )
+                self.group_transform = transforms.Compose([
+                    GroupResize(image_size),
+                    GroupRandomHorizontalFlip(),
+                    Stack(),
+                    ToTorchFormatTensor(),
+                ])
         else:
             self.group_transform = transforms.Compose([
                 GroupResize(image_size),
@@ -106,6 +198,13 @@ class DAiSEEDataset(data.Dataset):
             print(f"DAiSEE ({self.mode}): After undersampling → {class_counts}")
 
         print(f"DAiSEE ({self.mode}): Loaded {len(samples)} samples.")
+        
+        # Print SOTA config summary
+        if self.mode == 'train':
+            print(f"  SOTA Config: face_det={self.use_face_detection}, "
+                  f"temporal_dropout={self.temporal_dropout}, "
+                  f"augment={self.augment_strength}, "
+                  f"crop_ratios={self.crop_ratios}")
         return samples
 
     def _get_indices(self, num_frames):
@@ -182,6 +281,70 @@ class DAiSEEDataset(data.Dataset):
             result.append(img)
         return result
 
+    def _detect_face_from_video(self, video_path):
+        """Detect face region from the first valid frame of the video.
+        Returns crop params or None if detection fails."""
+        cap = cv2.VideoCapture(video_path)
+        if not cap.isOpened():
+            return None
+        
+        # Sample a few frames and try detection
+        total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        sample_indices = [0, total // 4, total // 2]
+        
+        for idx in sample_indices:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
+            ret, frame = cap.read()
+            if ret and frame is not None:
+                result = detect_face_region(frame)
+                cap.release()
+                return result
+        
+        cap.release()
+        return None
+
+    def _detect_face_from_frames(self, frames_path, frame_files):
+        """Detect face region from extracted frames directory.
+        Returns crop params or None if detection fails."""
+        # Try first, middle, quarter frames
+        n = len(frame_files)
+        sample_indices = [0, n // 4, n // 2]
+        
+        for idx in sample_indices:
+            if idx < n:
+                fpath = os.path.join(frames_path, frame_files[idx])
+                frame = cv2.imread(fpath)
+                if frame is not None:
+                    return detect_face_region(frame)
+        return None
+
+    def _apply_temporal_dropout(self, face_images, body_images):
+        """Randomly replace some frames with blank frames during training.
+        
+        Forces the temporal model to be robust to missing/corrupted frames.
+        The same frames are dropped for both face and body streams.
+        """
+        if self.temporal_dropout <= 0 or self.mode != 'train':
+            return face_images, body_images
+        
+        n = len(face_images)
+        num_drop = max(1, int(n * self.temporal_dropout))
+        # Don't drop more than 30% of frames
+        num_drop = min(num_drop, int(n * 0.3))
+        
+        drop_indices = random.sample(range(n), num_drop)
+        
+        for idx in drop_indices:
+            # Replace with the previous valid frame (temporal smoothing)
+            # rather than black frame, which is less disruptive
+            prev_idx = max(0, idx - 1)
+            if prev_idx in drop_indices:
+                prev_idx = max(0, idx - 2)
+            face_images[idx] = face_images[prev_idx].copy()
+            body_images[idx] = body_images[prev_idx].copy()
+        
+        return face_images, body_images
+
     def _load_frames_from_video(self, video_path, indices, face_crop_params, body_crop_params):
         """Read specific frames from video file with consistent crop params."""
         face_images = []
@@ -253,9 +416,11 @@ class DAiSEEDataset(data.Dataset):
         body_images = []
         
         # Pre-compute crop params ONCE for the entire video (temporal consistency)
-        # We need at least one frame's dimensions to compute crop params.
         # Use a reference dimension (DAiSEE videos are typically 640x480)
         ref_w, ref_h = 640, 480  # default, will be updated from first frame
+        
+        # === SOTA: Multi-scale crop ratio selection ===
+        crop_ratio = random.choice(self.crop_ratios)
         
         if source_type == 'frames':
             _, frames_path, frame_files = cache_entry
@@ -271,8 +436,15 @@ class DAiSEEDataset(data.Dataset):
             except:
                 pass
             
-            # Generate consistent crop params for this video
-            face_crop_params = self._get_crop_params(ref_w, ref_h, 0.5)
+            # === SOTA: Face detection or adaptive crop ===
+            if self.use_face_detection and self.mode == 'train':
+                detected = self._detect_face_from_frames(frames_path, frame_files)
+                if detected is not None:
+                    face_crop_params = detected
+                else:
+                    face_crop_params = self._get_crop_params(ref_w, ref_h, crop_ratio)
+            else:
+                face_crop_params = self._get_crop_params(ref_w, ref_h, crop_ratio)
             
             indices = self._get_indices(num_frames)
             for seg_ind in indices:
@@ -301,8 +473,15 @@ class DAiSEEDataset(data.Dataset):
                 ref_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)) or ref_h
                 cap.release()
             
-            # Generate consistent crop params for this video
-            face_crop_params = self._get_crop_params(ref_w, ref_h, 0.5)
+            # === SOTA: Face detection or adaptive crop ===
+            if self.use_face_detection and self.mode == 'train':
+                detected = self._detect_face_from_video(video_path)
+                if detected is not None:
+                    face_crop_params = detected
+                else:
+                    face_crop_params = self._get_crop_params(ref_w, ref_h, crop_ratio)
+            else:
+                face_crop_params = self._get_crop_params(ref_w, ref_h, crop_ratio)
             
             indices = self._get_indices(num_frames)
             face_images, body_images = self._load_frames_from_video(video_path, indices, face_crop_params, None)
@@ -311,6 +490,10 @@ class DAiSEEDataset(data.Dataset):
         
         if not face_images:
             return blank_return
+
+        # === SOTA: Temporal frame dropout ===
+        if self.mode == 'train' and self.temporal_dropout > 0:
+            face_images, body_images = self._apply_temporal_dropout(face_images, body_images)
 
         # Apply CONSISTENT ColorJitter during training (same params for all frames)
         if self.mode == 'train' and hasattr(self, '_color_jitter'):
