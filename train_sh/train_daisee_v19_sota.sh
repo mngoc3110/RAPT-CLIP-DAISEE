@@ -20,7 +20,11 @@
 #   + --augment-strength strong   (new)
 #   + --num-segments 16           (increased from 8 for more temporal info)
 #   + --epochs 40                 (more epochs for stronger augmentation)
+#   + --batch-size 4              (halved to fit 16 segments in GPU memory)
 # =============================================================================
+
+# Optimize CUDA memory allocation
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 DATASET_ROOT="/kaggle/input/datasets/mngochocsupham/daisee/DAiSEE_data"
 ANN_DIR="${DATASET_ROOT}/Labels"
@@ -48,7 +52,7 @@ python3 main.py \
   --dataset DAiSEE4Level \
   --gpu 0 \
   --epochs 40 \
-  --batch-size 8 \
+  --batch-size 4 \
   --workers 2 \
   --optimizer AdamW \
   --lr 2e-5 \
