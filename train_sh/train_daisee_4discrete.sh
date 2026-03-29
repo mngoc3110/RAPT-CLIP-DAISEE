@@ -28,7 +28,7 @@ python3 main.py \
   --dataset DAiSEE4Discrete \
   --gpu 0 \
   --epochs 25 \
-  --batch-size 16 \
+  --batch-size 8 \
   --workers 2 \
   --optimizer AdamW \
   --lr 2e-5 \
