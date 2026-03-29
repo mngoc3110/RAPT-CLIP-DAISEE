@@ -1,14 +1,9 @@
 #!/bin/bash
 
 # =============================================================================
-# DAiSEE 4-Class Discrete Training v2
+# DAiSEE 4-Class Discrete Training v3 — Aligned with RAPT-CLIP Original Config
 # Classes: Boredom(0) / Engagement(1) / Confusion(2) / Frustration(3)
-# Strategy:
-#   - Dùng dominant affective state làm label cho mỗi video clip
-#   - Merge Train + Validation → train (thêm data, ~6787 samples)
-#   - Dùng Test làm validation (validation ko update weights)
-#   - Focal Loss + WeightedSampler (imbalanced 4 class)
-#   - MI+DC loss bật lại (shape mismatch đã fix)
+# Config: LDAM + MI/DC=0.1 như RAER gốc, điều chỉnh cho DAiSEE webcam data
 # =============================================================================
 
 ROOT="/kaggle/input/datasets/mngochocsupham/daisee/DAiSEE_data"
@@ -19,10 +14,8 @@ if [ ! -d "$ROOT" ]; then
     ANN_DIR="$ROOT/Labels"
 fi
 
-echo "Starting DAiSEE 4-Discrete v2 Training..."
+echo "Starting DAiSEE 4-Discrete v3 (RAPT-CLIP aligned) Training..."
 echo "Root: $ROOT"
-echo "Train = TrainLabels + ValidationLabels merged"
-echo "Val   = TestLabels"
 
 if [ ! -f "$ANN_DIR/TrainLabels.csv" ]; then
     echo "ERROR: $ANN_DIR/TrainLabels.csv not found"
@@ -31,18 +24,18 @@ fi
 
 python3 main.py \
   --mode train \
-  --exper-name DAiSEE_4Discrete_v2 \
+  --exper-name DAiSEE_4Discrete_v3 \
   --dataset DAiSEE4Discrete \
   --gpu 0 \
-  --epochs 30 \
-  --batch-size 8 \
+  --epochs 25 \
+  --batch-size 16 \
   --workers 2 \
   --optimizer AdamW \
   --lr 2e-5 \
-  --lr-image-encoder 2e-6 \
-  --lr-prompt-learner 2e-4 \
+  --lr-image-encoder 1e-6 \
+  --lr-prompt-learner 3e-4 \
   --lr-adapter 1e-4 \
-  --weight-decay 0.01 \
+  --weight-decay 0.005 \
   --scheduler cosine \
   --warmup-epochs 3 \
   --temporal-layers 2 \
@@ -62,11 +55,12 @@ python3 main.py \
   --class-specific-contexts True \
   --load_and_tune_prompt_learner True \
   --temperature 0.07 \
-  --loss-type focal \
-  --focal-gamma 2.0 \
+  --loss-type ldam \
+  --ldam-s 2.0 \
+  --ldam-max-m 0.5 \
   --label-smoothing 0.05 \
-  --lambda_mi 0.05 \
-  --lambda_dc 0.05 \
+  --lambda_mi 0.1 \
+  --lambda_dc 0.1 \
   --mi-warmup 5 \
   --mi-ramp 10 \
   --dc-warmup 5 \
@@ -78,6 +72,6 @@ python3 main.py \
   --ema-decay 0.99 \
   --ema-start-epoch 5 \
   --grad-clip 1.0 \
-  --early-stop 10
+  --early-stop 8
 
 echo "Training Finished!"
