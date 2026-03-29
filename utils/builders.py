@@ -69,6 +69,11 @@ def get_class_info(args: argparse.Namespace) -> Tuple[list, list]:
         class_names_with_context = class_names_with_context_daisee
         class_descriptor = class_descriptor_daisee
         ensemble_prompts = prompt_ensemble_daisee
+    elif dataset_name == "DAiSEE4Level":
+        class_names = class_names_daisee_4level
+        class_names_with_context = class_names_with_context_daisee_4level
+        class_descriptor = class_descriptor_daisee_4level
+        ensemble_prompts = prompt_ensemble_daisee_4level
     elif dataset_name == "DAiSEE4Discrete":
         class_names = class_names_daisee4
         class_names_with_context = class_names_with_context_daisee4
@@ -185,7 +190,8 @@ def build_dataloaders(args: argparse.Namespace) -> Tuple[torch.utils.data.DataLo
             num_segments=args.num_segments,
             duration=args.duration,
             image_size=args.image_size,
-            max_samples_per_class=max_samples
+            max_samples_per_class=max_samples,
+            merge_3class=True
         )
         
         val_data = DAiSEEDataset(
@@ -194,7 +200,8 @@ def build_dataloaders(args: argparse.Namespace) -> Tuple[torch.utils.data.DataLo
             mode='val',
             num_segments=args.num_segments,
             duration=args.duration,
-            image_size=args.image_size
+            image_size=args.image_size,
+            merge_3class=True
         )
         
         test_data = DAiSEEDataset(
@@ -203,7 +210,8 @@ def build_dataloaders(args: argparse.Namespace) -> Tuple[torch.utils.data.DataLo
             mode='test',
             num_segments=args.num_segments,
             duration=args.duration,
-            image_size=args.image_size
+            image_size=args.image_size,
+            merge_3class=True
         )
         
         sampler = None
@@ -233,6 +241,67 @@ def build_dataloaders(args: argparse.Namespace) -> Tuple[torch.utils.data.DataLo
         print(f"Total number of training samples: {len(train_data)}")
         return train_loader, val_loader, test_loader
 
+    elif args.dataset.strip() == "DAiSEE4Level":
+        print(f"=> Using DAiSEE 4-Level Engagement dataloader...")
+        from dataloader.daisee_dataloader import DAiSEEDataset
+        
+        max_samples = getattr(args, 'max_samples_per_class', 0)
+        train_data = DAiSEEDataset(
+            root_dir=args.root_dir,
+            annotation_file=train_annotation_file_path,
+            mode='train',
+            num_segments=args.num_segments,
+            duration=args.duration,
+            image_size=args.image_size,
+            max_samples_per_class=max_samples,
+            merge_3class=False
+        )
+        val_data = DAiSEEDataset(
+            root_dir=args.root_dir,
+            annotation_file=val_annotation_file_path,
+            mode='val',
+            num_segments=args.num_segments,
+            duration=args.duration,
+            image_size=args.image_size,
+            merge_3class=False
+        )
+        test_data = DAiSEEDataset(
+            root_dir=args.root_dir,
+            annotation_file=test_annotation_file_path,
+            mode='test',
+            num_segments=args.num_segments,
+            duration=args.duration,
+            image_size=args.image_size,
+            merge_3class=False
+        )
+        
+        sampler = None
+        shuffle = True
+        if args.use_weighted_sampler:
+            print("=> Using WeightedRandomSampler for DAiSEE4Level.")
+            targets = [s[1] for s in train_data.samples]
+            class_counts = torch.tensor([targets.count(i) for i in range(num_classes)])
+            class_counts = torch.where(class_counts == 0, torch.ones_like(class_counts), class_counts)
+            class_weights = 1. / class_counts.float()
+            sample_weights = [class_weights[t] for t in targets]
+            sampler = torch.utils.data.WeightedRandomSampler(sample_weights, len(sample_weights))
+            shuffle = False
+
+        train_loader = torch.utils.data.DataLoader(
+            train_data, batch_size=args.batch_size, shuffle=shuffle, sampler=sampler,
+            num_workers=args.workers, pin_memory=True, drop_last=True
+        )
+        val_loader = torch.utils.data.DataLoader(
+            val_data, batch_size=args.batch_size, shuffle=False,
+            num_workers=args.workers, pin_memory=True
+        )
+        test_loader = torch.utils.data.DataLoader(
+            test_data, batch_size=args.batch_size, shuffle=False,
+            num_workers=args.workers, pin_memory=True
+        )
+        print(f"Total number of training samples: {len(train_data)}")
+        return train_loader, val_loader, test_loader
+        
     elif args.dataset.strip() == "DAiSEE4Discrete":
         print(f"=> Using DAiSEE 4-Discrete dataloader...")
         from dataloader.daisee_dataloader import DAiSEE4DiscreteDataset

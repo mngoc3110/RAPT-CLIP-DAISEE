@@ -15,7 +15,7 @@ CLIP_MEAN = [0.48145466, 0.4578275, 0.40821073]
 CLIP_STD = [0.26862954, 0.26130258, 0.27577711]
 
 class DAiSEEDataset(data.Dataset):
-    def __init__(self, root_dir, annotation_file, mode='train', num_segments=16, duration=1, image_size=224, max_samples_per_class=0, extra_annotation_files=None):
+    def __init__(self, root_dir, annotation_file, mode='train', num_segments=16, duration=1, image_size=224, max_samples_per_class=0, extra_annotation_files=None, merge_3class=False):
         self.root_dir = root_dir
         self.annotation_file = annotation_file
         self.mode = mode
@@ -26,6 +26,7 @@ class DAiSEEDataset(data.Dataset):
         self.frame_cache = {}
         self.max_samples_per_class = max_samples_per_class  # 0 = no cap
         self.extra_annotation_files = extra_annotation_files or []  # list of extra CSVs to merge
+        self.merge_3class = merge_3class
         
         self.samples = self._make_dataset()
         
@@ -81,9 +82,12 @@ class DAiSEEDataset(data.Dataset):
             clip_id = os.path.splitext(clip_id_ext)[0]
             subject_id = clip_id[:6]
             label = int(row[self.label_col])
-            # Merge to 3 classes: VeryLow(0)+Low(1) → 0, High(2) → 1, VeryHigh(3) → 2
-            label_map = {0: 0, 1: 0, 2: 1, 3: 2}
-            label = label_map[label]
+            
+            if self.merge_3class:
+                # Merge to 3 classes: VeryLow(0)+Low(1) → 0, High(2) → 1, VeryHigh(3) → 2
+                label_map = {0: 0, 1: 0, 2: 1, 3: 2}
+                label = label_map[label]
+                
             clip_dir = os.path.join(self.root_dir, 'DataSet', split_dir, subject_id, clip_id)
             samples.append((clip_dir, label, clip_id_ext))
 
@@ -274,12 +278,12 @@ class DAiSEEDataset(data.Dataset):
     def __len__(self):
         return len(self.samples)
 
-def daisee_train_data_loader(root_dir, list_file, num_segments, duration, image_size, bounding_box_face, bounding_box_body, crop_body=False, num_classes=4, max_samples_per_class=0):
-    dataset = DAiSEEDataset(root_dir, list_file, mode='train', num_segments=num_segments, duration=duration, image_size=image_size, max_samples_per_class=max_samples_per_class)
+def daisee_train_data_loader(root_dir, list_file, num_segments, duration, image_size, bounding_box_face, bounding_box_body, crop_body=False, num_classes=4, max_samples_per_class=0, merge_3class=False):
+    dataset = DAiSEEDataset(root_dir, list_file, mode='train', num_segments=num_segments, duration=duration, image_size=image_size, max_samples_per_class=max_samples_per_class, merge_3class=merge_3class)
     return dataset
 
-def daisee_test_data_loader(root_dir, list_file, num_segments, duration, image_size, bounding_box_face, bounding_box_body, crop_body=False, num_classes=4, max_samples_per_class=0):
-    dataset = DAiSEEDataset(root_dir, list_file, mode='test', num_segments=num_segments, duration=duration, image_size=image_size)
+def daisee_test_data_loader(root_dir, list_file, num_segments, duration, image_size, bounding_box_face, bounding_box_body, crop_body=False, num_classes=4, max_samples_per_class=0, merge_3class=False):
+    dataset = DAiSEEDataset(root_dir, list_file, mode='test', num_segments=num_segments, duration=duration, image_size=image_size, merge_3class=merge_3class)
     return dataset
 
 
