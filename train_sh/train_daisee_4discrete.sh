@@ -36,9 +36,9 @@ python3 main.py \
   --lr-prompt-learner 3e-4 \
   --lr-adapter 1e-4 \
   --weight-decay 0.005 \
-  --scheduler cosine \
-  --warmup-epochs 3 \
-  --temporal-layers 2 \
+  --milestones 10 15 20 \
+  --gamma 0.1 \
+  --temporal-layers 1 \
   --num-segments 8 \
   --duration 1 \
   --image-size 224 \
@@ -58,7 +58,7 @@ python3 main.py \
   --loss-type ldam \
   --ldam-s 2.0 \
   --ldam-max-m 0.5 \
-  --label-smoothing 0.05 \
+  --label-smoothing 0.0 \
   --lambda_mi 0.1 \
   --lambda_dc 0.1 \
   --mi-warmup 5 \
