@@ -91,6 +91,7 @@ optim_group.add_argument('--ema-decay', type=float, default=0.999, help='EMA dec
 optim_group.add_argument('--ema-start-epoch', type=int, default=3, help='Epoch to start applying EMA to validation (0=immediately). Delay prevents collapse when EMA≈init.')
 optim_group.add_argument('--use-random-erasing', action='store_true', help='Use RandomErasing augmentation on body branch.')
 optim_group.add_argument('--early-stop', type=int, default=0, help='Early stopping patience (0=disabled). Stop if val WAR not improved for N epochs.')
+optim_group.add_argument('--no-tta', action='store_true', help='Disable TTA validation every epoch to speed up training.')
 
 # --- Loss & Imbalance Handling ---
 loss_group = parser.add_argument_group('Loss & Imbalance Handling', 'Parameters for loss functions and imbalance handling')
@@ -413,17 +414,19 @@ def run_training(args: argparse.Namespace) -> None:
         if ema is not None and epoch >= ema_start_epoch:
             ema.restore(model)
 
-        # TTA validation (flip averaging)
-        if ema is not None and epoch >= ema_start_epoch:
-            ema.apply(model)
-        tta_war, tta_uar, _, tta_cm = trainer.validate_with_tta(val_loader, str(epoch))
-        if ema is not None and epoch >= ema_start_epoch:
-            ema.restore(model)
-        
-        # Use the better WAR (regular vs TTA)
-        if tta_war > val_war:
-            val_war, val_uar, val_cm = tta_war, tta_uar, tta_cm
-            print(f"[TTA] Using TTA result: WAR {tta_war:.2f}% > regular")
+        if not getattr(args, 'no_tta', False):
+            # TTA validation (flip averaging)
+            if ema is not None and epoch >= ema_start_epoch:
+                ema.apply(model)
+            tta_war, tta_uar, _, tta_cm = trainer.validate_with_tta(val_loader, str(epoch))
+            if ema is not None and epoch >= ema_start_epoch:
+                ema.restore(model)
+            
+            # Use the better WAR (regular vs TTA)
+            if tta_war > val_war:
+                val_war, val_uar, val_cm = tta_war, tta_uar, tta_cm
+                print(f"[TTA] Using TTA result: WAR {tta_war:.2f}% > regular")
+
 
         trainer.scheduler.step()
 

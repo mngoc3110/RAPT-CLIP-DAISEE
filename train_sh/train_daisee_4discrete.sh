@@ -72,6 +72,7 @@ python3 main.py \
   --ema-decay 0.99 \
   --ema-start-epoch 5 \
   --grad-clip 1.0 \
-  --early-stop 8
+  --early-stop 8 \
+  --no-tta
 
 echo "Training Finished!"
