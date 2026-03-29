@@ -311,7 +311,14 @@ class DAiSEE4DiscreteDataset(DAiSEEDataset):
         print(f"Loading annotations from: {self.annotation_file}")
         try:
             df = pd.read_csv(self.annotation_file)
-            df.columns = df.columns.str.strip()  # Fix trailing spaces
+            df.columns = df.columns.str.strip()
+            # Merge extra annotation files (e.g., train + val)
+            for extra_file in getattr(self, 'extra_annotation_files', []):
+                if os.path.exists(extra_file):
+                    extra_df = pd.read_csv(extra_file)
+                    extra_df.columns = extra_df.columns.str.strip()
+                    df = pd.concat([df, extra_df], ignore_index=True)
+                    print(f"  + Merged: {extra_file} ({len(extra_df)} rows)")
         except Exception as e:
             print(f"Error reading CSV: {e}")
             return samples
