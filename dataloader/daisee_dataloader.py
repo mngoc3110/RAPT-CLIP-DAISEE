@@ -15,7 +15,7 @@ CLIP_MEAN = [0.48145466, 0.4578275, 0.40821073]
 CLIP_STD = [0.26862954, 0.26130258, 0.27577711]
 
 class DAiSEEDataset(data.Dataset):
-    def __init__(self, root_dir, annotation_file, mode='train', num_segments=16, duration=1, image_size=224, max_samples_per_class=0):
+    def __init__(self, root_dir, annotation_file, mode='train', num_segments=16, duration=1, image_size=224, max_samples_per_class=0, extra_annotation_files=None):
         self.root_dir = root_dir
         self.annotation_file = annotation_file
         self.mode = mode
@@ -25,6 +25,7 @@ class DAiSEEDataset(data.Dataset):
         self.label_col = 'Engagement' 
         self.frame_cache = {}
         self.max_samples_per_class = max_samples_per_class  # 0 = no cap
+        self.extra_annotation_files = extra_annotation_files or []  # list of extra CSVs to merge
         
         self.samples = self._make_dataset()
         
@@ -52,6 +53,12 @@ class DAiSEEDataset(data.Dataset):
         print(f"Loading annotations from: {self.annotation_file}")
         try:
             df = pd.read_csv(self.annotation_file)
+            # Merge extra annotation files (e.g., train + val → more training data)
+            for extra_file in self.extra_annotation_files:
+                if os.path.exists(extra_file):
+                    extra_df = pd.read_csv(extra_file)
+                    df = pd.concat([df, extra_df], ignore_index=True)
+                    print(f"  + Merged: {extra_file} ({len(extra_df)} rows)")
         except Exception as e:
             print(f"Error reading CSV: {e}")
             return samples

@@ -554,3 +554,29 @@ prompt_ensemble_daisee4 = [
         "A face showing intense displeasure with tight muscles and a deep frown."
     ]
 ]
+
+# ============================================================
+# DAiSEE 4-Class Discrete: Boredom / Engagement / Confusion / Frustration
+# ============================================================
+
+class_names_daisee4 = [
+    "Boredom (student in online class).",
+    "Engagement (student in online class).",
+    "Confusion (student in online class).",
+    "Frustration (student in online class).",
+]
+
+class_names_with_context_daisee4 = [
+    "A student showing boredom during an online class.",
+    "A student showing engagement during an online class.",
+    "A student showing confusion during an online class.",
+    "A student showing frustration during an online class.",
+]
+
+class_descriptor_daisee4 = [
+    "A student with heavy drooping eyelids, mouth open or yawning, gaze wandering away from the camera, chin resting on hand, showing boredom.",
+    "A student with open alert eyes directed straight at the camera, upright posture, mouth closed, showing engagement.",
+    "A student with furrowed brows, head tilted to one side, eyes squinting or narrowed, mouth slightly open, showing confusion.",
+    "A student with pressed lips, clenched jaw, tense facial muscles, narrowed eyes staring hard at the screen, showing frustration.",
+]
+

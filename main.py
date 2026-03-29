@@ -57,9 +57,10 @@ exp_group.add_argument('--seed', type=int, default=42, help='Random seed for rep
 # --- Data & Path ---
 path_group = parser.add_argument_group('Data & Path', 'Paths to datasets and pretrained models')
 path_group.add_argument('--root-dir', type=str, default='./', help='Root directory of the dataset. E.g., /kaggle/input/raer-video-emotion-dataset/RAER')
-path_group.add_argument('--train-annotation', type=str, default='RAER/annotation/train_80.txt', help='Absolute path to training annotation file. E.g., /kaggle/input/raer-annot/annotation/train_abs.txt')
-path_group.add_argument('--val-annotation', type=str, default='RAER/annotation/val_20.txt', help='Absolute path to validation annotation file. E.g., /kaggle/input/raer-annot/annotation/val_20.txt')
-path_group.add_argument('--test-annotation', type=str, default='RAER/annotation/test.txt', help='Absolute path to testing annotation file. E.g., /kaggle/input/raer-annot/annotation/test_abs.txt')
+path_group.add_argument('--train-annotation', type=str, default='RAER/annotation/train_80.txt', help='Absolute path to training annotation file.')
+path_group.add_argument('--val-annotation', type=str, default='RAER/annotation/val_20.txt', help='Absolute path to validation annotation file.')
+path_group.add_argument('--test-annotation', type=str, default='RAER/annotation/test.txt', help='Absolute path to testing annotation file.')
+path_group.add_argument('--extra-train-annotations', type=str, nargs='*', default=[], help='Extra annotation CSVs to merge into training set (e.g., val CSV).')
 path_group.add_argument('--clip-path', type=str, default='ViT-B/16', help='Path to the pretrained CLIP model.')
 path_group.add_argument('--bounding-box-face', type=str, default='RAER/bounding_box/face.json', help='Absolute path to face bounding box JSON. E.g., /kaggle/input/raer-annot/annotation/bounding_box/face_abs.json')
 path_group.add_argument('--bounding-box-body', type=str, default='RAER/bounding_box/body.json', help='Absolute path to body bounding box JSON. E.g., /kaggle/input/raer-annot/annotation/bounding_box/body_abs.json')

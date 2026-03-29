@@ -237,13 +237,15 @@ def build_dataloaders(args: argparse.Namespace) -> Tuple[torch.utils.data.DataLo
         print(f"=> Using DAiSEE 4-Discrete dataloader...")
         from dataloader.daisee_dataloader import DAiSEE4DiscreteDataset
         
+        extra_files = getattr(args, 'extra_train_annotations', [])
         train_data = DAiSEE4DiscreteDataset(
             root_dir=args.root_dir,
             annotation_file=train_annotation_file_path,
             mode='train',
             num_segments=args.num_segments,
             duration=args.duration,
-            image_size=args.image_size
+            image_size=args.image_size,
+            extra_annotation_files=extra_files
         )
         val_data = DAiSEE4DiscreteDataset(
             root_dir=args.root_dir,
