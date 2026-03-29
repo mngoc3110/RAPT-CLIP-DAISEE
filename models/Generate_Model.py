@@ -40,11 +40,27 @@ class GenerateModel(nn.Module):
         elif args.dataset == "DAiSEE":
             from models.Text import class_descriptor_daisee
             hand_crafted_prompts = class_descriptor_daisee
+        elif args.dataset == "DAiSEE4Level":
+            from models.Text import class_descriptor_daisee_4level
+            hand_crafted_prompts = class_descriptor_daisee_4level
+        elif args.dataset == "DAiSEEBinary":
+            from models.Text import class_descriptor_daisee_binary
+            hand_crafted_prompts = class_descriptor_daisee_binary
+        elif args.dataset == "DAiSEE4Discrete":
+            from models.Text import class_descriptor_daisee4
+            hand_crafted_prompts = class_descriptor_daisee4
+        elif args.dataset in ("CAER", "CAER-S"):
+            from models.Text import class_descriptor_caer
+            hand_crafted_prompts = class_descriptor_caer
+        elif args.dataset == "StudentEngagement":
+            from models.Text import class_descriptor_student_engagement
+            hand_crafted_prompts = class_descriptor_student_engagement
+        elif args.dataset == "StudentEngagement6":
+            from models.Text import class_descriptor_student_engagement_6
+            hand_crafted_prompts = class_descriptor_student_engagement_6
         else:
-            # Fallback to some generic or 7-class descriptors if available
             from models.Text import class_descriptor_7_only_face
             hand_crafted_prompts = class_descriptor_7_only_face
-            
         self.tokenized_hand_crafted_prompts = torch.cat([clip.tokenize(p) for p in hand_crafted_prompts])
         with torch.no_grad():
             embedding = clip_model.token_embedding(self.tokenized_hand_crafted_prompts).type(self.dtype)

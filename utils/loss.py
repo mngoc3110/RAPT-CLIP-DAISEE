@@ -151,6 +151,8 @@ class LDAMLoss(nn.Module):
         self.register_buffer('m_list', torch.FloatTensor(m_list)) 
         self.s = s
         self.weight = weight
+        print(f"  LDAM margins (per class): {m_list}")
+        print(f"  LDAM scaling factor s={s}")
 
     def forward(self, x, target):
         index = torch.zeros_like(x, dtype=torch.uint8)
