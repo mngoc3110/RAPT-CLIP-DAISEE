@@ -70,7 +70,7 @@ python3 main.py \
   --use-amp \
   --use-ema \
   --ema-decay 0.99 \
-  --ema-start-epoch 5 \
+  --ema-start-epoch 0 \
   --grad-clip 1.0 \
   --early-stop 8 \
   --no-tta
