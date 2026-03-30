@@ -357,31 +357,31 @@ class_descriptor_daisee = [
 
 prompt_ensemble_daisee = [
     [ # Low Engagement (0) = merged Very Low + Low
-        "A close-up of a student's face with eyes fully closed, appearing to be asleep during class.",
-        "A face with heavy drooping eyelids and a slack jaw, dozing off in front of the screen.",
-        "A close-up of a student's face with an unfocused bored expression, eyes half-open.",
-        "A student's face with eyes wandering around instead of looking at the screen.",
-        "A face showing a tired yawning expression with droopy eyes during an online class.",
-        "A student with a distracted look, eyes glancing to the side rather than at the camera.",
-        "A close-up showing a face with no eye contact, completely zoned out or barely paying attention."
+        "A student showing low engagement, face with eyes fully closed, appearing to be asleep.",
+        "A student showing low engagement, heavy drooping eyelids and a slack jaw, dozing off.",
+        "A student showing low engagement, face with an unfocused bored expression, eyes half-open.",
+        "A student showing low engagement, eyes wandering around instead of looking at the screen.",
+        "A student showing low engagement, tired yawning expression with droopy eyes.",
+        "A student showing low engagement, distracted look, eyes glancing to the side.",
+        "A student showing low engagement, no eye contact, completely zoned out or barely paying attention."
     ],
     [ # High Engagement (1)
-        "A close-up of a student's face looking directly at the screen with calm focused eyes.",
-        "A student's face with steady eye contact toward the camera and a neutral attentive expression.",
-        "A face showing quiet concentration with relaxed features and eyes fixed ahead.",
-        "A student with clear open eyes watching the screen attentively with a composed expression.",
-        "A close-up of a face with a focused neutral gaze, paying attention to the online lesson.",
-        "A student's face with relaxed brow and steady eyes, quietly absorbing the lecture content.",
-        "A face showing sustained attention with gentle focused eyes and a calm mouth."
+        "A student showing high engagement, looking directly at the screen with calm focused eyes.",
+        "A student showing high engagement, steady eye contact and a neutral attentive expression.",
+        "A student showing high engagement, quiet concentration with relaxed features.",
+        "A student showing high engagement, clear open eyes watching the screen attentively.",
+        "A student showing high engagement, focused neutral gaze, paying attention to the lesson.",
+        "A student showing high engagement, quietly absorbing the lecture content.",
+        "A student showing high engagement, sustained attention with gentle focused eyes."
     ],
     [ # Very High Engagement (2)
-        "A close-up of a student's face with wide alert eyes showing intense focus and interest.",
-        "A student's face with raised eyebrows and bright eyes, deeply engaged in the lesson.",
-        "A face showing an animated expression of curiosity with widened eyes and a slight smile.",
-        "A student with slightly furrowed brows and intensely concentrated eyes fixed on the screen.",
-        "A close-up of an excited face reacting to content with expressive eyes and an open expression.",
-        "A student's face showing visible intellectual engagement with alert widened eyes and a nod.",
-        "A face with a bright eager expression, eyes sparkling with interest in the lesson material."
+        "A student showing very high engagement, wide alert eyes showing intense focus and interest.",
+        "A student showing very high engagement, raised eyebrows and bright eyes, deeply engaged.",
+        "A student showing very high engagement, animated expression of curiosity with widened eyes.",
+        "A student showing very high engagement, intensely concentrated eyes fixed on the screen.",
+        "A student showing very high engagement, excited face reacting to content with expressive eyes.",
+        "A student showing very high engagement, visible intellectual engagement with alert widened eyes.",
+        "A student showing very high engagement, eager expression, eyes sparkling with interest in the lesson material."
     ]
 ]
 

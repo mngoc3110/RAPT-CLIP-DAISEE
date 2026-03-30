@@ -28,8 +28,8 @@ fi
 
 python3 main.py \
   --mode train \
-  --exper-name DAiSEE_4Level_WAR_Optimized \
-  --dataset DAiSEE4Level \
+  --exper-name DAiSEE_3Level_WAR_Optimized \
+  --dataset DAiSEE \
   --gpu 0 \
   --epochs 25 \
   --batch-size 8 \
