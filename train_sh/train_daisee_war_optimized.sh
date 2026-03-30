@@ -58,9 +58,7 @@ python3 main.py \
   --class-specific-contexts True \
   --load_and_tune_prompt_learner True \
   --temperature 0.07 \
-  --loss-type ldam \
-  --ldam-s 10.0 \
-  --ldam-max-m 0.5 \
+  --loss-type evr \
   --label-smoothing 0.1 \
   --lambda_mi 0.1 \
   --lambda_dc 0.1 \
