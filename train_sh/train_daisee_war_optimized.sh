@@ -59,7 +59,7 @@ python3 main.py \
   --load_and_tune_prompt_learner True \
   --temperature 0.07 \
   --loss-type ldam \
-  --ldam-s 5.0 \
+  --ldam-s 10.0 \
   --ldam-max-m 0.5 \
   --label-smoothing 0.1 \
   --lambda_mi 0.1 \
@@ -68,7 +68,7 @@ python3 main.py \
   --mi-ramp 10 \
   --dc-warmup 5 \
   --dc-ramp 10 \
-  --max-samples-per-class 1000 \
+  --max-samples-per-class 300 \
   --mixup-alpha 0.0 \
   --use-amp \
   --use-ema \
