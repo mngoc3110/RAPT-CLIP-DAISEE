@@ -58,8 +58,7 @@ python3 main.py \
   --class-specific-contexts True \
   --load_and_tune_prompt_learner True \
   --temperature 0.07 \
-  --loss-type evr \
-  --label-smoothing 0.1 \
+  --loss-type ordinal_ce \
   --lambda_mi 0.1 \
   --lambda_dc 0.1 \
   --mi-warmup 5 \
