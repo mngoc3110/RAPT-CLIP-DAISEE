@@ -58,18 +58,18 @@ python3 main.py \
   --class-specific-contexts True \
   --load_and_tune_prompt_learner True \
   --temperature 0.07 \
-  --loss-type ce \
-  --label-smoothing 0.0 \
+  --loss-type ldam \
+  --ldam-s 5.0 \
+  --ldam-max-m 0.5 \
+  --label-smoothing 0.1 \
   --lambda_mi 0.1 \
   --lambda_dc 0.1 \
   --mi-warmup 5 \
   --mi-ramp 10 \
   --dc-warmup 5 \
   --dc-ramp 10 \
+  --max-samples-per-class 1000 \
   --mixup-alpha 0.0 \
-  --use-ldl \
-  --ldl-temperature 2.0 \
-  --ldl-warmup 5 \
   --use-amp \
   --use-ema \
   --ema-decay 0.99 \
