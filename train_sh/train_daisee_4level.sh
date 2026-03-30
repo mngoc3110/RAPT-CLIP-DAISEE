@@ -70,6 +70,9 @@ python3 main.py \
   --dc-ramp 10 \
   --use-weighted-sampler \
   --mixup-alpha 0.0 \
+  --use-ldl \
+  --ldl-temperature 2.0 \
+  --ldl-warmup 5 \
   --use-amp \
   --use-ema \
   --ema-decay 0.99 \
