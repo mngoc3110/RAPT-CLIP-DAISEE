@@ -254,14 +254,16 @@ class Trainer:
                 all_preds_list.append(preds.cpu())
                 all_targets_list.append(target.cpu())
 
-                if not is_train and saved_images_count < 32:
+                # Save images for debugging
+                if (not is_train and saved_images_count < 32) or (is_train and int(epoch_str) == 0 and i == 0):
                     for img_idx in range(images_face.size(0)):
-                        if saved_images_count < 32:
+                        if saved_images_count < 64:
+                            pred_val = preds[img_idx].item() if not is_train else -1
                             self._save_debug_image(
                                 images_face[img_idx].cpu(),
-                                preds[img_idx].item(),
+                                pred_val,
                                 target[img_idx].item(),
-                                epoch_str,
+                                epoch_str if not is_train else "train_0",
                                 i,
                                 img_idx
                             )
