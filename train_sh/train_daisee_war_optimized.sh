@@ -65,7 +65,7 @@ python3 main.py \
   --mi-ramp 10 \
   --dc-warmup 5 \
   --dc-ramp 10 \
-  --max-samples-per-class 0 \
+  --max-samples-per-class 1000 \
   --mixup-alpha 0.0 \
   --use-amp \
   --use-ema \
