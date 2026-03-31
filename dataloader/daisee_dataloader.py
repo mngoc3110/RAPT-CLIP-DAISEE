@@ -1,5 +1,6 @@
 import os
 import cv2
+import cv2
 import pandas as pd
 import torch
 import random
@@ -9,6 +10,10 @@ from torch.utils import data
 from torchvision import transforms
 from tqdm import tqdm
 from dataloader.video_transform import GroupResize, Stack, ToTorchFormatTensor, GroupRandomHorizontalFlip
+
+# Load HaarCascade inside the module scope so it's loaded only once securely
+HAAR_CASCADE_PATH = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+face_cascade = cv2.CascadeClassifier(HAAR_CASCADE_PATH)
 
 # CLIP normalization constants
 CLIP_MEAN = [0.48145466, 0.4578275, 0.40821073]
@@ -128,11 +133,33 @@ class DAiSEEDataset(data.Dataset):
                 offsets = np.pad(np.array(list(range(num_frames))), (0, self.num_segments - num_frames), "edge")
         return offsets
 
-    def _center_crop_face(self, img_pil, crop_ratio=0.5):
-        """Crop center of frame to focus on face area. Adds random jitter during training."""
+    def _detect_and_crop_face(self, img_pil, fallback_ratio=0.6):
+        """Uses OpenCV Haar Cascade to find the face. Fallback to center crop if no face."""
         w, h = img_pil.size
-        crop_w = int(w * crop_ratio)
-        crop_h = int(h * crop_ratio)
+        
+        # Convert PIL to CV2 Grayscale
+        img_cv = np.array(img_pil)
+        gray = cv2.cvtColor(img_cv, cv2.COLOR_RGB2GRAY)
+        
+        # Detect faces
+        faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(64, 64))
+        
+        if len(faces) > 0:
+            # Get largest face by area
+            largest_face = max(faces, key=lambda rect: rect[2] * rect[3])
+            x, y, fw, fh = largest_face
+            
+            # Add 20% margin to bounding box
+            margin_w, margin_h = int(fw * 0.2), int(fh * 0.2)
+            left = max(0, x - margin_w)
+            top = max(0, y - margin_h)
+            right = min(w, x + fw + margin_w)
+            bottom = min(h, y + fh + margin_h)
+            return img_pil.crop((left, top, right, bottom))
+            
+        # --- Fallback to Center Crop if no face found ---
+        crop_w = int(w * fallback_ratio)
+        crop_h = int(h * fallback_ratio)
         
         if self.mode == 'train':
             # Random jitter: ±15% offset from center
@@ -169,8 +196,9 @@ class DAiSEEDataset(data.Dataset):
                 if ret and frame is not None:
                     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                     img_pil = Image.fromarray(frame_rgb)
-                    face_images.append(self._center_crop_face(img_pil, 0.5))  # Same-Crop: face region
-                    body_images.append(self._center_crop_face(img_pil, 0.5))  # Same-Crop: complementary view
+                    cropped_face = self._detect_and_crop_face(img_pil, 0.6)
+                    face_images.append(cropped_face)  # Same-Crop Strategy
+                    body_images.append(cropped_face)  
                 else:
                     blank = Image.new('RGB', (self.image_size, self.image_size))
                     face_images.append(blank)
@@ -233,8 +261,9 @@ class DAiSEEDataset(data.Dataset):
                 for _ in range(self.duration):
                     try:
                         img_pil = Image.open(os.path.join(frames_path, frame_files[p])).convert('RGB')
-                        face_images.append(self._center_crop_face(img_pil, 0.5))  # Same-Crop: face region
-                        body_images.append(self._center_crop_face(img_pil, 0.5))  # Same-Crop: complementary view
+                        cropped_face = self._detect_and_crop_face(img_pil, 0.6)
+                        face_images.append(cropped_face)  # Same-Crop Strategy
+                        body_images.append(cropped_face)  
                     except:
                         blank = Image.new('RGB', (self.image_size, self.image_size))
                         face_images.append(blank)
