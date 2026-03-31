@@ -283,13 +283,12 @@ def run_training(args: argparse.Namespace) -> None:
         from utils.loss import OrdinalCELoss
         num_classes = len(cls_num_list) if cls_num_list else 3
         
-        # Calculate inverse class frequency weights
+        # Calculate class weights: boost minority WITHOUT suppressing majority
         cls_weights = None
         if cls_num_list and sum(cls_num_list) > 0:
-            total = sum(cls_num_list)
-            cls_weights = torch.FloatTensor([total / (len(cls_num_list) * c + 1e-6) for c in cls_num_list])
-            # Normalize so the mean weight is 1.0 (preserves overall learning rate scale)
-            cls_weights = cls_weights / cls_weights.sum() * len(cls_num_list)
+            max_count = max(cls_num_list)
+            # Weight = max_count / class_count, clamped to [1.0, 5.0]
+            cls_weights = torch.FloatTensor([min(5.0, max(1.0, max_count / (c + 1e-6))) for c in cls_num_list])
             print(f"=> Computed OrdinalCELoss Class Weights: [{', '.join([f'{w:.3f}' for w in cls_weights.tolist()])}]")
             
         print(f"=> Using Ordinal CE Loss (sigma=0.5, {num_classes} classes)")
