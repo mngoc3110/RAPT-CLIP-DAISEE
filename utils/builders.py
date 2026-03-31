@@ -217,14 +217,17 @@ def build_dataloaders(args: argparse.Namespace) -> Tuple[torch.utils.data.DataLo
         sampler = None
         shuffle = True
         if args.use_weighted_sampler:
-            print("=> Using WeightedRandomSampler for DAiSEE.")
+            print("=> Using WeightedRandomSampler for DAiSEE (sqrt-frequency).")
             targets = [s[1] for s in train_data.samples]
             class_counts = torch.tensor([targets.count(i) for i in range(num_classes)])
             class_counts = torch.where(class_counts == 0, torch.ones_like(class_counts), class_counts)
-            class_weights = 1. / class_counts.float()
+            # sqrt-frequency: gentle rebalancing (Class 0 ~3x, not 10x)
+            class_weights = 1. / torch.sqrt(class_counts.float())
             sample_weights = [class_weights[t] for t in targets]
             sampler = torch.utils.data.WeightedRandomSampler(sample_weights, len(sample_weights))
             shuffle = False
+            print(f"   Class counts: {class_counts.tolist()}")
+            print(f"   Sqrt-freq weights: {[f'{w:.4f}' for w in class_weights.tolist()]}")
 
         train_loader = torch.utils.data.DataLoader(
             train_data, batch_size=args.batch_size, shuffle=shuffle, sampler=sampler,

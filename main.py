@@ -261,17 +261,23 @@ def run_training(args: argparse.Namespace) -> None:
         print(f"=> Using SemanticLDLLoss (LDL) with temperature {args.ldl_temperature}")
         criterion = SemanticLDLLoss(temperature=args.ldl_temperature).to(args.device)
     elif args.loss_type == 'focal':
-        # Compute class weights from distribution
-        if sum(cls_num_list) > 0:
-            total = sum(cls_num_list)
-            cls_weights = torch.FloatTensor([total / (len(cls_num_list) * c + 1e-6) for c in cls_num_list])
-            cls_weights = cls_weights / cls_weights.sum() * len(cls_num_list)  # Normalize
-        else:
-            cls_weights = None
         gamma = getattr(args, 'focal_gamma', 2.0)
-        print(f"=> Using Focal Loss with gamma={gamma}, weights={cls_weights}")
-        criterion = FocalLoss(gamma=gamma, weight=cls_weights.to(args.device) if cls_weights is not None else None,
+        
+        # DRW Phase 1: No class weights (learn clean features)
+        print(f"=> [DRW Phase 1] Focal Loss gamma={gamma}, NO class weights")
+        criterion = FocalLoss(gamma=gamma, weight=None,
                               label_smoothing=args.label_smoothing).to(args.device)
+        
+        # DRW Phase 2: Prepare weighted criterion for later activation
+        drw_criterion_phase2 = None
+        drw_start_epoch = 10  # Switch to Phase 2 at epoch 10
+        if cls_num_list and sum(cls_num_list) > 0:
+            max_count = max(cls_num_list)
+            # Boost-only weights: minority gets boosted, majority stays at 1.0
+            cls_weights = torch.FloatTensor([min(5.0, max(1.0, max_count / (c + 1e-6))) for c in cls_num_list])
+            print(f"=> [DRW Phase 2 prepared] Will activate at epoch {drw_start_epoch} with weights: [{', '.join([f'{w:.2f}' for w in cls_weights.tolist()])}]")
+            drw_criterion_phase2 = FocalLoss(gamma=gamma, weight=cls_weights.to(args.device),
+                                              label_smoothing=args.label_smoothing).to(args.device)
     elif args.loss_type == 'ldam':
         if sum(cls_num_list) > 0:
             print(f"=> Using LDAM Loss with s={args.ldam_s}, max_m={args.ldam_max_m}")
@@ -402,6 +408,12 @@ def run_training(args: argparse.Namespace) -> None:
         with open(log_txt_path, 'a') as f:
             f.write(log_msg + '\n')
         print(log_msg)
+
+        # DRW (Deferred Re-Weighting): Switch criterion at drw_start_epoch
+        if args.loss_type == 'focal' and 'drw_criterion_phase2' in dir() and drw_criterion_phase2 is not None:
+            if epoch == drw_start_epoch:
+                print(f"=> [DRW] Switching to Phase 2: Focal Loss WITH class weights at epoch {epoch}")
+                trainer.criterion = drw_criterion_phase2
 
         # Train & Validate
         train_war, train_uar, train_los, train_cm = trainer.train_epoch(train_loader, epoch)

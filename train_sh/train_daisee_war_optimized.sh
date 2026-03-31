@@ -58,7 +58,7 @@ python3 main.py \
   --class-specific-contexts True \
   --load_and_tune_prompt_learner True \
   --temperature 0.07 \
-  --loss-type ordinal_ce \
+  --loss-type focal \
   --lambda_mi 0.1 \
   --lambda_dc 0.1 \
   --mi-warmup 5 \
@@ -66,6 +66,7 @@ python3 main.py \
   --dc-warmup 5 \
   --dc-ramp 10 \
   --max-samples-per-class 0 \
+  --use-weighted-sampler \
   --mixup-alpha 0.0 \
   --use-amp \
   --use-ema \
