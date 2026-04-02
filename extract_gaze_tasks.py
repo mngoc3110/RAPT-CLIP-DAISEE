@@ -18,8 +18,11 @@ if not os.path.exists(MODEL_PATH):
         MODEL_PATH
     )
 
-# Create FaceLandmarker options
-base_options = python.BaseOptions(model_asset_path=MODEL_PATH)
+# Create FaceLandmarker options with GPU Delegate
+base_options = python.BaseOptions(
+    model_asset_path=MODEL_PATH,
+    delegate=python.BaseOptions.Delegate.GPU
+)
 options = vision.FaceLandmarkerOptions(
     base_options=base_options,
     output_face_blendshapes=False,
