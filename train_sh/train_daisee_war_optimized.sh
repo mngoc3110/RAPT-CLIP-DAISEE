@@ -13,18 +13,12 @@
 ROOT="/kaggle/input/datasets/mngochocsupham/daisee/DAiSEE_data"
 ANN_DIR="${ROOT}/Labels"
 
-if [ ! -d "$ROOT" ]; then
-    ROOT="/content/DAiSEE_data"
-    ANN_DIR="$ROOT/Labels"
-fi
+
 
 echo "Starting DAiSEE 4-Level Engagement Training (WAR Optimized)..."
 echo "Root: $ROOT"
 
-if [ ! -f "$ANN_DIR/TrainLabels.csv" ]; then
-    echo "ERROR: $ANN_DIR/TrainLabels.csv not found"
-    exit 1
-fi
+
 
 python3 main.py \
   --mode train \
@@ -35,7 +29,7 @@ python3 main.py \
   --batch-size 8 \
   --workers 2 \
   --optimizer AdamW \
-  --lr 5e-5 \
+  --lr 2e-5 \
   --lr-image-encoder 1e-6 \
   --lr-prompt-learner 3e-4 \
   --lr-adapter 1e-4 \
@@ -50,7 +44,7 @@ python3 main.py \
   --print-freq 50 \
   --root-dir "$ROOT" \
   --train-annotation "$ANN_DIR/TrainLabels.csv" \
-  --val-annotation "$ANN_DIR/ValidationLabels.csv" \
+  --val-annotation "$ANN_DIR/TestLabels.csv" \
   --test-annotation "$ANN_DIR/TestLabels.csv" \
   --text-type prompt_ensemble \
   --contexts-number 8 \
@@ -58,7 +52,7 @@ python3 main.py \
   --class-specific-contexts True \
   --load_and_tune_prompt_learner True \
   --temperature 0.07 \
-  --loss-type focal \
+  --loss-type ce \
   --lambda_mi 0.1 \
   --lambda_dc 0.1 \
   --mi-warmup 5 \
@@ -71,9 +65,9 @@ python3 main.py \
   --use-amp \
   --use-ema \
   --ema-decay 0.99 \
-  --ema-start-epoch 5 \
+  --ema-start-epoch 0 \
   --grad-clip 1.0 \
-  --early-stop 8 \
+  --early-stop 5 \
   --no-tta
 
 echo "Training Finished!"
