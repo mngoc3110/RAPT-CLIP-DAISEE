@@ -133,7 +133,14 @@ class Trainer:
         pbar = tqdm(loader, desc=f"{mode_str} Epoch {epoch_str}", file=sys.stdout)
         
         with context:
-            for i, (images_face, images_body, target) in enumerate(pbar):
+            for i, batch_data in enumerate(pbar):
+                if len(batch_data) == 4:
+                    images_face, images_body, gaze_features, target = batch_data
+                    gaze_features = gaze_features.to(self.device)
+                else:
+                    images_face, images_body, target = batch_data
+                    gaze_features = None
+
                 # DEBUG: Check for NaN in inputs
                 if torch.isnan(images_face).any() or torch.isinf(images_face).any():
                     print(f"\n[CRITICAL ERROR] NaN/Inf detected in images_face at batch {i}!")
@@ -149,7 +156,7 @@ class Trainer:
 
                 with torch.amp.autocast(device_type='cuda' if torch.cuda.is_available() else 'cpu', enabled=self.use_amp):
                     # Forward pass
-                    output, learnable_text_features, hand_crafted_text_features, moco_logits = self.model(images_face, images_body)
+                    output, learnable_text_features, hand_crafted_text_features, moco_logits = self.model(images_face, images_body, gaze_features=gaze_features)
                     
                     # DEBUG: Check model output for NaN
                     if torch.isnan(output).any():
@@ -328,18 +335,26 @@ class Trainer:
         all_targets = []
         
         with torch.no_grad():
-            for images_face, images_body, target in tqdm(val_loader, desc=f"TTA Epoch {epoch_num_str}"):
+            for batch_data in tqdm(val_loader, desc=f"TTA Epoch {epoch_num_str}"):
+                if len(batch_data) == 4:
+                    images_face, images_body, gaze_features, target = batch_data
+                    gaze_features = gaze_features.to(self.device)
+                else:
+                    images_face, images_body, target = batch_data
+                    gaze_features = None
+                    
                 images_face = images_face.to(self.device)
                 images_body = images_body.to(self.device)
                 target = target.to(self.device)
                 
                 with torch.amp.autocast(device_type='cuda' if torch.cuda.is_available() else 'cpu', enabled=self.use_amp):
                     # Original
-                    output_orig, _, _, _ = self.model(images_face, images_body)
+                    output_orig, _, _, _ = self.model(images_face, images_body, gaze_features=gaze_features)
                     # Horizontal flip
                     output_flip, _, _, _ = self.model(
                         torch.flip(images_face, dims=[-1]),
-                        torch.flip(images_body, dims=[-1])
+                        torch.flip(images_body, dims=[-1]),
+                        gaze_features=gaze_features
                     )
                 
                 all_logits_orig.append(output_orig.cpu())

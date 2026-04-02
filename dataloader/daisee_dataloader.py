@@ -242,13 +242,15 @@ class DAiSEEDataset(data.Dataset):
         source_type = cache_entry[0]
         
         blank_return = (
-            torch.zeros(self.num_segments, 3, self.image_size, self.image_size),
-            torch.zeros(self.num_segments, 3, self.image_size, self.image_size),
+            torch.zeros(self.num_segments * self.duration, 3, self.image_size, self.image_size),
+            torch.zeros(self.num_segments * self.duration, 3, self.image_size, self.image_size),
+            torch.zeros(self.num_segments * self.duration, 3), # Blank gaze
             label
         )
         
         face_images = []
         body_images = []
+        gaze_features_list = []
         
         if source_type == 'frames':
             _, frames_path, frame_files = cache_entry
@@ -301,8 +303,34 @@ class DAiSEEDataset(data.Dataset):
         std = torch.tensor(CLIP_STD).view(1, 3, 1, 1)
         process_face = (process_face - mean) / std
         process_body = (process_body - mean) / std
-        
-        return process_face, process_body, label
+        # Load Gaze Features
+        npy_path = ''
+        if source_type == 'video':
+            npy_path = video_path.replace('.avi', '.npy').replace('.mp4', '.npy')
+        elif source_type == 'frames':
+            npy_path = os.path.join(frames_path, '..', os.path.basename(os.path.normpath(os.path.join(frames_path, '..'))) + '.npy')
+            
+        gaze_features = None
+        if os.path.exists(npy_path):
+            try:
+                gaze_data = np.load(npy_path) # shape: (num_frames, 3)
+                num_gaze_frames = gaze_data.shape[0]
+                gaze_features = []
+                # Map image indices to gaze indices
+                for seg_ind in indices:
+                    p = min(int(seg_ind), num_gaze_frames - 1)
+                    for _ in range(self.duration):
+                        gaze_features.append(gaze_data[p])
+                        if p < num_gaze_frames - 1:
+                            p += 1
+                gaze_features = torch.tensor(np.array(gaze_features), dtype=torch.float32)
+            except:
+                gaze_features = None
+                
+        if gaze_features is None:
+            gaze_features = torch.zeros(self.num_segments * self.duration, 3, dtype=torch.float32)
+            
+        return process_face, process_body, gaze_features, label
 
     def __len__(self):
         return len(self.samples)

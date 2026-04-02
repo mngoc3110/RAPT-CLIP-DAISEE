@@ -82,6 +82,16 @@ class GenerateModel(nn.Module):
                                                      dim_head=64)
         self.clip_model_ = clip_model
         self.project_fc = nn.Linear(1024, 512)
+        
+        # Gaze MLP Fusion Branch
+        self.gaze_mlp = nn.Sequential(
+            nn.Linear(3, 128),
+            nn.LayerNorm(128),
+            nn.GELU(),
+            nn.Dropout(0.2),
+            nn.Linear(128, 512),
+            nn.LayerNorm(512)
+        )
 
         # MoCo Initialization
         if hasattr(args, 'use_moco') and args.use_moco:
@@ -97,6 +107,7 @@ class GenerateModel(nn.Module):
             self.temporal_net_m = copy.deepcopy(self.temporal_net)
             self.temporal_net_body_m = copy.deepcopy(self.temporal_net_body)
             self.project_fc_m = copy.deepcopy(self.project_fc)
+            self.gaze_mlp_m = copy.deepcopy(self.gaze_mlp)
 
             # Freeze momentum encoders
             for param in self.image_encoder_m.parameters(): param.requires_grad = False
@@ -104,6 +115,7 @@ class GenerateModel(nn.Module):
             for param in self.temporal_net_m.parameters(): param.requires_grad = False
             for param in self.temporal_net_body_m.parameters(): param.requires_grad = False
             for param in self.project_fc_m.parameters(): param.requires_grad = False
+            for param in self.gaze_mlp_m.parameters(): param.requires_grad = False
 
             # Create queue
             self.register_buffer("queue", torch.randn(self.moco_dim, self.moco_k))
@@ -125,6 +137,8 @@ class GenerateModel(nn.Module):
             param_k.data = param_k.data * self.moco_m + param_q.data * (1. - self.moco_m)
         for param_q, param_k in zip(self.project_fc.parameters(), self.project_fc_m.parameters()):
             param_k.data = param_k.data * self.moco_m + param_q.data * (1. - self.moco_m)
+        for param_q, param_k in zip(self.gaze_mlp.parameters(), self.gaze_mlp_m.parameters()):
+            param_k.data = param_k.data * self.moco_m + param_q.data * (1. - self.moco_m)
 
     @torch.no_grad()
     def _dequeue_and_enqueue(self, keys):
@@ -145,7 +159,7 @@ class GenerateModel(nn.Module):
         self.queue_ptr[0] = ptr
 
     @torch.no_grad()
-    def forward_momentum(self, image_face, image_body):
+    def forward_momentum(self, image_face, image_body, gaze_features=None):
         # Face Part
         n, t, c, h, w = image_face.shape
         image_face = image_face.contiguous().view(-1, c, h, w)
@@ -164,10 +178,17 @@ class GenerateModel(nn.Module):
         # Concatenate and Project
         video_features = torch.cat((video_face_features, video_body_features), dim=-1)
         video_features = self.project_fc_m(video_features)
+        
+        # Fuse Gaze Features
+        if gaze_features is not None:
+            gaze_avg = gaze_features.mean(dim=1)
+            gaze_encoded = self.gaze_mlp_m(gaze_avg.type(self.dtype))
+            video_features = video_features + gaze_encoded
+            
         video_features = video_features / video_features.norm(dim=-1, keepdim=True)
         return video_features
         
-    def forward(self, image_face,image_body):
+    def forward(self, image_face, image_body, gaze_features=None):
         ################# Visual Part #################
         # Face Part
         n, t, c, h, w = image_face.shape
@@ -187,6 +208,13 @@ class GenerateModel(nn.Module):
         # Concatenate the two parts
         video_features = torch.cat((video_face_features, video_body_features), dim=-1)
         video_features = self.project_fc(video_features)
+        
+        # Fuse Gaze Features
+        if gaze_features is not None:
+            gaze_avg = gaze_features.mean(dim=1)
+            gaze_encoded = self.gaze_mlp(gaze_avg.type(self.dtype))
+            video_features = video_features + gaze_encoded
+            
         # Robust normalization to avoid NaN on MPS
         video_features = video_features / (video_features.norm(dim=-1, keepdim=True) + 1e-6)
 
@@ -218,7 +246,7 @@ class GenerateModel(nn.Module):
         if self.training and hasattr(self.args, 'use_moco') and self.args.use_moco:
             with torch.no_grad():
                 self._momentum_update_key_encoder()
-                k_video_features = self.forward_momentum(image_face, image_body)
+                k_video_features = self.forward_momentum(image_face, image_body, gaze_features=gaze_features)
             
             # Compute MoCo Logits
             # Positive logits: similarity between query and key
