@@ -4,6 +4,9 @@ import numpy as np
 import glob
 from concurrent.futures import ThreadPoolExecutor
 import tqdm
+import mediapipe as mp
+
+mp_face_mesh = mp.solutions.face_mesh
 
 # MediaPipe landmark indices
 LEFT_EYE = [362, 385, 386, 263, 374, 380]
@@ -33,7 +36,6 @@ def calculate_ear(eye_landmarks):
 
 def process_video(args):
     video_path, output_dir = args
-    import mediapipe as mp
     
     # Extract just the video ID (e.g. 1100011002)
     vid_id = os.path.basename(video_path).split('.')[0]
@@ -43,12 +45,7 @@ def process_video(args):
     if os.path.exists(save_path):
         return True
         
-    try:
-        mp_face_mesh = mp.solutions.face_mesh
-    except AttributeError:
-        # Fallback if needed
-        import mediapipe.python.solutions.face_mesh as mp_face_mesh
-        
+    global mp_face_mesh
     face_mesh = mp_face_mesh.FaceMesh(
         static_image_mode=False,
         max_num_faces=1,
