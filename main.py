@@ -327,6 +327,8 @@ def run_training(args: argparse.Namespace) -> None:
         {"params": model.project_fc.parameters(), "lr": args.lr},
         {"params": model.face_adapter.parameters(), "lr": args.lr_adapter}
     ]
+    if hasattr(model, 'gaze_mlp'):
+        optimizer_grouped_parameters.append({"params": model.gaze_mlp.parameters(), "lr": args.lr_adapter})
 
     if args.optimizer == 'SGD':
         optimizer = torch.optim.SGD(optimizer_grouped_parameters, momentum=args.momentum, weight_decay=args.weight_decay)
