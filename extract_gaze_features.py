@@ -32,7 +32,7 @@ def calculate_ear(eye_landmarks):
     return (v1 + v2) / (2.0 * h + 1e-6)
 
 def process_video(video_path, output_dir):
-    import mediapipe as mp
+    import mediapipe.python.solutions.face_mesh as mp_face_mesh
     
     # Extract just the video ID (e.g. 1100011002)
     vid_id = os.path.basename(video_path).split('.')[0]
@@ -42,7 +42,6 @@ def process_video(video_path, output_dir):
     if os.path.exists(save_path):
         return True
         
-    mp_face_mesh = mp.solutions.face_mesh
     face_mesh = mp_face_mesh.FaceMesh(
         static_image_mode=False,
         max_num_faces=1,
