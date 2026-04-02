@@ -303,12 +303,14 @@ class DAiSEEDataset(data.Dataset):
         std = torch.tensor(CLIP_STD).view(1, 3, 1, 1)
         process_face = (process_face - mean) / std
         process_body = (process_body - mean) / std
-        # Load Gaze Features
-        npy_path = ''
-        if source_type == 'video':
-            npy_path = video_path.replace('.avi', '.npy').replace('.mp4', '.npy')
-        elif source_type == 'frames':
-            npy_path = os.path.join(frames_path, '..', os.path.basename(os.path.normpath(os.path.join(frames_path, '..'))) + '.npy')
+        # Load Gaze Features from a writable directory (e.g. Kaggle working dir)
+        clip_id = os.path.basename(clip_dir)
+        # Default working dir path for Kaggle
+        working_gaze_dir = "/kaggle/working/Gaze_Features"
+        if not os.path.exists(working_gaze_dir):
+            working_gaze_dir = os.path.join(self.root_dir, 'Gaze_Features') # Fallback local
+            
+        npy_path = os.path.join(working_gaze_dir, f"{clip_id}.npy")
             
         gaze_features = None
         if os.path.exists(npy_path):

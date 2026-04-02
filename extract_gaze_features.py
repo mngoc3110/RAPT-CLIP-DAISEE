@@ -32,9 +32,10 @@ def calculate_ear(eye_landmarks):
     h = np.linalg.norm(eye_landmarks[0] - eye_landmarks[3])
     return (v1 + v2) / (2.0 * h + 1e-6)
 
-def process_video(video_path):
-    # Determine save path: Change from .avi/.mp4 to .npy
-    save_path = video_path.replace('.avi', '.npy').replace('.mp4', '.npy')
+def process_video(video_path, output_dir):
+    # Extract just the video ID (e.g. 1100011002)
+    vid_id = os.path.basename(video_path).split('.')[0]
+    save_path = os.path.join(output_dir, f"{vid_id}.npy")
     
     # If already exists, skip
     if os.path.exists(save_path):
@@ -120,19 +121,35 @@ def process_video(video_path):
     return True
 
 if __name__ == '__main__':
-    root_dir = "/Users/macbook/Downloads/RAPT-CLIP-DAISEE/DAiSEE/DataSet"
+    # Kaggle dataset path
+    root_dir = "/kaggle/input/datasets/mngochocsupham/daisee/DAiSEE_data"
+    if not os.path.exists(root_dir):
+        root_dir = "/Users/macbook/Downloads/RAPT-CLIP-DAISEE/DAiSEE" # Local fallback
+        
+    # Sửa: Đường dẫn xuất file. Vì Kaggle /input là read-only, ta phải lưu ra /working
+    output_dir = "/kaggle/working/Gaze_Features"
+    if not os.path.exists("/kaggle/working"):
+        output_dir = os.path.join(root_dir, "Gaze_Features") # Local fallback
+        
+    os.makedirs(output_dir, exist_ok=True)
+    print(f"Features will be saved to: {output_dir}")
+        
     all_videos = []
-    
     for ext in ["*.avi", "*.mp4"]:
         all_videos.extend(glob.glob(f"{root_dir}/*/*/*/{ext}", recursive=True))
+        # Support deep CAER/DAiSEE folder structures
+        all_videos.extend(glob.glob(f"{root_dir}/*/*/*/*/{ext}", recursive=True))
         
     print(f"Found {len(all_videos)} videos to process.")
     
-    # Process in parallel (use 4-6 cores depending on the machine)
-    num_cores = os.cpu_count() - 2 if os.cpu_count() > 2 else 1
+    # Bundle args for map
+    tasks = [(vid, output_dir) for vid in all_videos]
+    
+    # Process in parallel
+    num_cores = max(1, os.cpu_count() - 1)
     print(f"Using {num_cores} cores for parallel extraction...")
     
     with Pool(num_cores) as p:
-        list(tqdm.tqdm(p.imap_unordered(process_video, all_videos), total=len(all_videos)))
+        list(tqdm.tqdm(p.starmap(process_video, tasks), total=len(tasks)))
         
     print("FINISHED EXTRACTION!")
