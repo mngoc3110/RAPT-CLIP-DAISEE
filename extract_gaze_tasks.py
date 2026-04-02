@@ -18,10 +18,10 @@ if not os.path.exists(MODEL_PATH):
         MODEL_PATH
     )
 
-# Create FaceLandmarker options with GPU Delegate
+# Create FaceLandmarker options with CPU Delegate (GPU fails EGL on headless Kaggle)
 base_options = python.BaseOptions(
     model_asset_path=MODEL_PATH,
-    delegate=python.BaseOptions.Delegate.GPU
+    delegate=python.BaseOptions.Delegate.CPU
 )
 options = vision.FaceLandmarkerOptions(
     base_options=base_options,
