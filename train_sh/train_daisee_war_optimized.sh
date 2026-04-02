@@ -26,7 +26,7 @@ python3 main.py \
   --dataset DAiSEE \
   --gpu 0 \
   --epochs 25 \
-  --batch-size 8 \
+  --batch-size 16 \
   --workers 2 \
   --optimizer AdamW \
   --lr 2e-5 \
@@ -37,7 +37,7 @@ python3 main.py \
   --milestones 10 15 20 \
   --gamma 0.1 \
   --temporal-layers 1 \
-  --num-segments 8 \
+  --num-segments 1 \
   --duration 1 \
   --image-size 224 \
   --seed 42 \
