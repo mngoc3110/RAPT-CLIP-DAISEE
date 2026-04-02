@@ -1,7 +1,6 @@
 import os
 import cv2
 import numpy as np
-import mediapipe as mp
 import glob
 from multiprocessing import Pool
 import tqdm
@@ -33,6 +32,8 @@ def calculate_ear(eye_landmarks):
     return (v1 + v2) / (2.0 * h + 1e-6)
 
 def process_video(video_path, output_dir):
+    import mediapipe as mp
+    
     # Extract just the video ID (e.g. 1100011002)
     vid_id = os.path.basename(video_path).split('.')[0]
     save_path = os.path.join(output_dir, f"{vid_id}.npy")
