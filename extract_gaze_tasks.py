@@ -59,10 +59,19 @@ def process_video_tasks_api(args):
         
     features = []
     
+    frame_count = 0
+    last_feature = [0.0, 0.0, 0.0]
+    
     while True:
         ret, frame = cap.read()
         if not ret:
             break
+            
+        frame_count += 1
+        # Optimize: Process 1 frame every 15 frames (~2 fps), vastly speeds up extraction
+        if frame_count % 15 != 1 and frame_count > 1:
+            features.append(last_feature)
+            continue
             
         # Convert to MP Image
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -102,12 +111,10 @@ def process_video_tasks_api(args):
             else:
                 pitch, yaw = 0.0, 0.0
                 
-            features.append([avg_ear, float(pitch), float(yaw)])
+            last_feature = [avg_ear, float(pitch), float(yaw)]
+            features.append(last_feature)
         else:
-            if len(features) > 0:
-                features.append(features[-1])
-            else:
-                features.append([0.0, 0.0, 0.0])
+            features.append(last_feature)
                 
     cap.release()
     np.save(save_path, np.array(features, dtype=np.float32))
