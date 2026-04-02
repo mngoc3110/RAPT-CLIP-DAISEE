@@ -26,10 +26,10 @@ python3 main.py \
   --dataset DAiSEE \
   --gpu 0 \
   --epochs 25 \
-  --batch-size 16 \
+  --batch-size 8 \
   --workers 2 \
   --optimizer AdamW \
-  --lr 2e-5 \
+  --lr 5e-5 \
   --lr-image-encoder 1e-6 \
   --lr-prompt-learner 3e-4 \
   --lr-adapter 1e-4 \
@@ -37,7 +37,7 @@ python3 main.py \
   --milestones 10 15 20 \
   --gamma 0.1 \
   --temporal-layers 1 \
-  --num-segments 1 \
+  --num-segments 8 \
   --duration 1 \
   --image-size 224 \
   --seed 42 \
@@ -52,7 +52,7 @@ python3 main.py \
   --class-specific-contexts True \
   --load_and_tune_prompt_learner True \
   --temperature 0.07 \
-  --loss-type ce \
+  --loss-type focal \
   --lambda_mi 0.1 \
   --lambda_dc 0.1 \
   --mi-warmup 5 \
@@ -65,9 +65,9 @@ python3 main.py \
   --use-amp \
   --use-ema \
   --ema-decay 0.99 \
-  --ema-start-epoch 0 \
+  --ema-start-epoch 5 \
   --grad-clip 1.0 \
-  --early-stop 5 \
+  --early-stop 8 \
   --no-tta
 
 echo "Training Finished!"
