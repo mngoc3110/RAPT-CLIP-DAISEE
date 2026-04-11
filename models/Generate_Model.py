@@ -243,23 +243,15 @@ class GenerateModel(nn.Module):
             hand_crafted_text_features = hand_crafted_text_features / (hand_crafted_text_features.norm(dim=-1, keepdim=True) + 1e-6)
 
         ################# MoCo Updates ###################
-        moco_logits = None
+        returned_moco_features = None
         if self.training and hasattr(self.args, 'use_moco') and self.args.use_moco:
             with torch.no_grad():
                 self._momentum_update_key_encoder()
                 k_video_features = self.forward_momentum(image_face, image_body, gaze_features=gaze_features)
-            
-            # Compute MoCo Logits
-            # Positive logits: similarity between query and key
-            l_pos = torch.einsum('nc,nc->n', [video_features, k_video_features]).unsqueeze(-1)
-            # Negative logits: similarity between query and queue
-            l_neg = torch.einsum('nc,ck->nk', [video_features, self.queue.clone().detach()])
-
-            # logits: Nx(1+K)
-            moco_logits = torch.cat([l_pos, l_neg], dim=1)
-            moco_logits /= self.moco_t
 
             self._dequeue_and_enqueue(k_video_features)
+            # Return video_features so trainer can compute Supervised MoCoRank
+            returned_moco_features = video_features
 
         ################# Classification ###################
         # Calculate logits
@@ -279,4 +271,4 @@ class GenerateModel(nn.Module):
         else:
             output = video_features @ text_features.t() / self.args.temperature
 
-        return output, text_features, hand_crafted_text_features, moco_logits
+        return output, text_features, hand_crafted_text_features, returned_moco_features

@@ -225,8 +225,10 @@ class Trainer:
                         dc_losses.update(dc_loss.item(), target.size(0))
 
                     if is_train and moco_logits is not None:
-                         moco_target = torch.zeros(moco_logits.size(0), dtype=torch.long).to(self.device)
-                         moco_loss = torch.nn.CrossEntropyLoss()(moco_logits, moco_target)
+                         # Here moco_logits is actually returned_moco_features (video_features)
+                         from utils.loss import MoCoRankLoss
+                         moco_loss_fn = MoCoRankLoss(temperature=getattr(self.model.args, 'moco_t', 0.07)).to(self.device)
+                         moco_loss = moco_loss_fn(moco_logits, processed_learnable_text_features, target, self.model.queue.detach())
                          loss += moco_loss
                          moco_losses.update(moco_loss.item(), target.size(0))
 
