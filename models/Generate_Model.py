@@ -92,6 +92,7 @@ class GenerateModel(nn.Module):
             nn.Linear(128, 512),
             nn.LayerNorm(512)
         )
+        self.alpha_gaze = nn.Parameter(torch.tensor(0.0))
 
         # MoCo Initialization
         if hasattr(args, 'use_moco') and args.use_moco:
@@ -183,7 +184,7 @@ class GenerateModel(nn.Module):
         if gaze_features is not None:
             gaze_avg = gaze_features.mean(dim=1)
             gaze_encoded = self.gaze_mlp_m(gaze_avg.type(self.dtype))
-            video_features = video_features + gaze_encoded
+            video_features = video_features + self.alpha_gaze * gaze_encoded
             
         video_features = video_features / video_features.norm(dim=-1, keepdim=True)
         return video_features
@@ -213,7 +214,7 @@ class GenerateModel(nn.Module):
         if gaze_features is not None:
             gaze_avg = gaze_features.mean(dim=1)
             gaze_encoded = self.gaze_mlp(gaze_avg.type(self.dtype))
-            video_features = video_features + gaze_encoded
+            video_features = video_features + self.alpha_gaze * gaze_encoded
             
         # Robust normalization to avoid NaN on MPS
         video_features = video_features / (video_features.norm(dim=-1, keepdim=True) + 1e-6)
