@@ -1,31 +1,31 @@
 #!/bin/bash
 
 # =============================================================================
-# DAiSEE Kaggle Training — 3-Class (Anti Mode-Collapse v3)
-# GPU: T4/P100 trên Kaggle
+# DAiSEE Kaggle Training — WAR > 60% Optimized (v4)
+# Đượng dẫn: Tối ưu WAR (overall accuracy) cho 3-class merge
 #
-# Fixes v3 (anti mode-collapse):
-#   1. --use-weighted-sampler (sqrt-freq: class 0=x10, class 1=x1, class 2=x1)
-#   2. focal-gamma 3.0 (higher = more penalty on easy majority class)
-#   3. drw-start-epoch 3 (kích hoạt class weight SỚM)
-#   4. tắt MI/DC loss (nhiễu khi model chưa học được gì)
-#   5. label-smoothing 0 (không làm mềm target khi đang collapse)
+# Key analysis (test set: Low=88/5%, High=882/49%, VH=814/46%):
+#   - WAR hiện tại 49.4% = model predict toàn bộ là High
+#   - Để WAR > 60%: chỉ cần phân biệt High vs VH được là đủ
+#   - KHÔNG dùng WeightedSampler (hại WAR vì sacrifice High/VH accuracy)
+#   - Dùng Focal gamma=3.0 để tự chống collapse mà không cần sampler
+#   - DRW epoch 5: class weight [3,1,1] chỉ boost nhẹ Low, giữ High/VH
 # =============================================================================
 
 ROOT="/kaggle/input/datasets/mngochocsupham/daisee/DAiSEE_data"
 ANN_DIR="${ROOT}/Labels"
 
 echo "============================================"
-echo "  DAiSEE Kaggle 3-Class Training (Anti-Collapse v3)"
+echo "  DAiSEE Kaggle — WAR > 60% Optimized (v4)"
 echo "  Root: $ROOT"
 echo "============================================"
 
 python3 main.py \
   --mode train \
-  --exper-name DAiSEE_3Class_Kaggle_v2 \
+  --exper-name DAiSEE_WAR60_v4 \
   --dataset DAiSEE \
   --gpu 0 \
-  --epochs 25 \
+  --epochs 30 \
   --batch-size 8 \
   --workers 2 \
   --optimizer AdamW \
@@ -61,16 +61,15 @@ python3 main.py \
   --dc-warmup 0 \
   --dc-ramp 0 \
   --max-samples-per-class 0 \
-  --label-smoothing 0.0 \
-  --use-weighted-sampler \
-  --drw-start-epoch 3 \
+  --label-smoothing 0.05 \
+  --drw-start-epoch 5 \
   --mixup-alpha 0.0 \
   --use-amp \
   --use-ema \
   --ema-decay 0.998 \
   --ema-start-epoch 5 \
   --grad-clip 1.0 \
-  --early-stop 8 \
+  --early-stop 10 \
   --no-tta
 
 echo "Training Finished!"
