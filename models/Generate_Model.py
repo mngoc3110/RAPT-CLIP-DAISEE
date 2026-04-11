@@ -1,4 +1,5 @@
 from torch import nn
+import torch.nn.functional as F
 from models.Temporal_Model import *
 from models.Prompt_Learner import *
 from models.Text import class_descriptor_5_only_face
@@ -6,6 +7,31 @@ from models.Adapter import Adapter
 from clip import clip
 import copy
 import itertools
+
+
+class CosineClassifier(nn.Module):
+    """τ-normalized cosine classifier — prevents mode collapse.
+    
+    Normalizes both features and class prototypes to unit sphere.
+    Output = tau * cosine_similarity(features, prototypes)
+    
+    Why this prevents collapse:
+    - All classes equidistant from origin on unit sphere
+    - Random prototypes → diverse initial predictions guaranteed
+    - Learnable tau controls confidence magnitude
+    
+    Reference: Kang et al., "Decoupling Representation and Classifier" (ICLR 2020)
+    """
+    def __init__(self, in_features, num_classes, tau_init=16.0):
+        super().__init__()
+        self.weight = nn.Parameter(torch.randn(num_classes, in_features))
+        nn.init.xavier_uniform_(self.weight)
+        self.tau = nn.Parameter(torch.tensor(float(tau_init)))
+    
+    def forward(self, x):
+        x_norm = F.normalize(x.float(), dim=-1)
+        w_norm = F.normalize(self.weight, dim=-1)
+        return self.tau * (x_norm @ w_norm.t())
 
 class GenerateModel(nn.Module):
     def __init__(self, input_text, clip_model, args):
@@ -94,22 +120,12 @@ class GenerateModel(nn.Module):
         )
         self.alpha_gaze = nn.Parameter(torch.tensor(0.0))
 
-        # Linear Classifier Head (bypasses CLIP text similarity)
+        # Cosine Classifier Head (bypasses CLIP text similarity)
         self.use_classifier_head = getattr(args, 'use_classifier_head', False)
         if self.use_classifier_head:
             num_cls = self.num_classes if self.is_ensemble else len(input_text)
-            self.classifier_head = nn.Sequential(
-                nn.LayerNorm(512),
-                nn.Linear(512, 256),
-                nn.GELU(),
-                nn.Dropout(0.2),
-                nn.Linear(256, num_cls)
-            )
-            # Initialize: default xavier (gain=1.0) for proper logit magnitude
-            # gain=0.1 produced logits ~0.07 → softmax near-uniform → mode collapse
-            nn.init.xavier_normal_(self.classifier_head[-1].weight)
-            nn.init.zeros_(self.classifier_head[-1].bias)
-            print(f"=> Using LINEAR CLASSIFIER HEAD ({num_cls} classes) with LayerNorm + GELU")
+            self.classifier_head = CosineClassifier(512, num_cls, tau_init=16.0)
+            print(f"=> Using COSINE CLASSIFIER ({num_cls} classes, tau_init=16.0)")
 
         # MoCo Initialization
         if hasattr(args, 'use_moco') and args.use_moco:
@@ -275,8 +291,8 @@ class GenerateModel(nn.Module):
 
         ################# Classification ###################
         if self.use_classifier_head:
-            # Use raw (un-normalized) features for proper gradient flow
-            output = self.classifier_head(video_features_raw.float()) / self.args.temperature
+            # CosineClassifier: normalizes internally, tau scales output
+            output = self.classifier_head(video_features_raw)
         elif self.is_ensemble:
             # Reshape text features for ensembling: (C*P, D) -> (C, P, D)
             text_features = text_features.view(self.num_classes, self.num_prompts_per_class, -1)

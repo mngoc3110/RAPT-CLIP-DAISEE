@@ -1,25 +1,31 @@
 #!/bin/bash
 
 # =============================================================================
-# DAiSEE 3-Class Engagement — LINEAR CLASSIFIER HEAD + Gaze Fusion (v12)
+# DAiSEE 3-Class Engagement — COSINE CLASSIFIER + Gaze Fusion (v13)
 #
-# ROOT CAUSE of v11 validation mode collapse:
-#   WeightedRandomSampler makes training distribution balanced, but validation
-#   sees the original skewed distribution (88/882/814) → model can't generalize
+# ROOT CAUSE of v10-v12 validation mode collapse:
+#   Linear classifier with L2-normalized or near-identical features always
+#   converges to predicting majority class because output depends on magnitude
+#   (which is uniform after normalization), not angular differences.
 #
-# Fix v12:
-#   1. REMOVE WeightedRandomSampler (same distribution train & val)
-#   2. Class-weighted Focal Loss from epoch 0 (--drw-start-epoch 0)
-#   3. Higher image encoder LR (2e-5) to learn discriminative features
-#   4. Temperature 0.3 for sharper classifier predictions
-#   5. Focal gamma 3.0 to ignore easy majority-class examples
+# DEFINITIVE FIX — CosineClassifier (τ-normalized):
+#   - L2-normalizes BOTH features AND class prototypes to unit sphere
+#   - Output = tau * cosine_similarity(features, prototypes)
+#   - Random prototypes → DIVERSE initial predictions guaranteed
+#   - Learnable tau (init=16) → model controls confidence
+#   - PROVEN: Kang et al. "Decoupling Representation and Classifier" (ICLR 2020)
+#
+# Additional:
+#   - Focal Loss gamma=1.0 + DRW class weights (cap 5.0) from epoch 0
+#   - No WeightedRandomSampler (avoid train/val distribution mismatch)
+#   - Image encoder lr=2e-5 for feature adaptation
 # =============================================================================
 
 ROOT="/kaggle/input/datasets/mngochocsupham/daisee/DAiSEE_data"
 ANN_DIR="${ROOT}/Labels"
 
 echo "============================================"
-echo "  DAiSEE — Classifier Head + Gaze (v12)"
+echo "  DAiSEE — Cosine Classifier + Gaze (v13)"
 echo "  Root: $ROOT"
 echo "============================================"
 
@@ -32,7 +38,7 @@ fi
 
 python3 main.py \
   --mode train \
-  --exper-name DAiSEE_ClassifierHead_v12 \
+  --exper-name DAiSEE_CosineClassifier_v13 \
   --dataset DAiSEE \
   --gpu 0 \
   --epochs 30 \
@@ -61,10 +67,10 @@ python3 main.py \
   --class-token-position end \
   --class-specific-contexts True \
   --load_and_tune_prompt_learner True \
-  --temperature 0.3 \
+  --temperature 1.0 \
   --use-classifier-head \
   --loss-type focal \
-  --focal-gamma 3.0 \
+  --focal-gamma 1.0 \
   --drw-start-epoch 0 \
   --lambda_mi 0.0 \
   --lambda_dc 0.0 \

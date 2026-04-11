@@ -275,9 +275,8 @@ def run_training(args: argparse.Namespace) -> None:
         drw_start_epoch = getattr(args, 'drw_start_epoch', 5)  # Configurable via --drw-start-epoch
         if cls_num_list and sum(cls_num_list) > 0:
             max_count = max(cls_num_list)
-            # Boost-only weights: capped at 2.0 for WAR optimization (gentle rebalancing)
-            # Higher cap (5.0+) sacrifices High/VH accuracy for Low recall → hurts WAR
-            cls_weights = torch.FloatTensor([min(2.0, max(1.0, max_count / (c + 1e-6))) for c in cls_num_list])
+            # Boost-only weights: capped at 5.0 for class rebalancing
+            cls_weights = torch.FloatTensor([min(5.0, max(1.0, max_count / (c + 1e-6))) for c in cls_num_list])
             print(f"=> [DRW Phase 2 prepared] Will activate at epoch {drw_start_epoch} with weights: [{', '.join([f'{w:.2f}' for w in cls_weights.tolist()])}]")
             drw_criterion_phase2 = FocalLoss(gamma=gamma, weight=cls_weights.to(args.device),
                                               label_smoothing=args.label_smoothing).to(args.device)
@@ -500,6 +499,18 @@ def run_training(args: argparse.Namespace) -> None:
         print(log_msg)
         with open(log_txt_path, 'a') as f:
             f.write(log_msg + '\n\n')
+
+        # Log learnable parameters for debugging
+        extra = []
+        if hasattr(model, 'classifier_head') and hasattr(model.classifier_head, 'tau'):
+            extra.append(f'tau={model.classifier_head.tau.item():.2f}')
+        if hasattr(model, 'alpha_gaze'):
+            extra.append(f'alpha_gaze={model.alpha_gaze.item():.4f}')
+        if extra:
+            info = '  Learnable params: ' + ' | '.join(extra)
+            print(info)
+            with open(log_txt_path, 'a') as f:
+                f.write(info + '\n')
 
         # Early stopping check
         if args.early_stop > 0:
