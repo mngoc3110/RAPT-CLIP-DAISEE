@@ -3,38 +3,33 @@
 # =============================================================================
 # DAiSEE Kaggle Training — SOTA-Aligned (v5)
 #
-# Root cause fix: CLIP text embeddings "High" vs "VH" quá gần nhau.
-# SOTA giải quyết bằng cách train visual backbone supervised hoàn toàn.
-# Cần unfreeze image encoder mạnh để model học visual features mới.
-#
-# Key changes vs trước:
-#   1. lr-image-encoder: 1e-6 → 5e-5 (100x mạnh hơn)
-#   2. loss-type: focal → crossentropy (CE + class_weights từ epoch 0)
-#   3. drw-start-epoch: 0 (class weights active ngay từ đầu)
-#   4. batch-size: 4 (giảm vì encoder unfreeze tốn RAM)
-#   5. Tắt MI/DC (overhead, không cần khi visual features đang học)
-#   6. ema-start-epoch: 3 (start sớm hơn)
+# DAiSEE Kaggle Training — Gaze + CLIP Fusion (v6)
+# Root cause fix:
+#   - Trước: lr=5e-5 overfit train students, val collapse toàn bộ sang VH
+#   - Gaze features (300,3) là student-independent → discriminative hơn raw CLIP
+#   - lr-image-encoder 5e-6 (middle ground: học mực độ vừa phải, không overfit)
+#   - Gaze MLP stream đã có sẵn trong kiến trúc, chỉ cần enable
 # =============================================================================
 
 ROOT="/kaggle/input/datasets/mngochocsupham/daisee/DAiSEE_data"
 ANN_DIR="${ROOT}/Labels"
 
 echo "============================================"
-echo "  DAiSEE Kaggle — SOTA-Aligned v5"
+echo "  DAiSEE Kaggle — Gaze+CLIP Fusion v6"
 echo "  Root: $ROOT"
 echo "============================================"
 
 python3 main.py \
   --mode train \
-  --exper-name DAiSEE_SOTAv5 \
+  --exper-name DAiSEE_GazeFusion_v6 \
   --dataset DAiSEE \
   --gpu 0 \
   --epochs 30 \
-  --batch-size 4 \
+  --batch-size 8 \
   --workers 2 \
   --optimizer AdamW \
   --lr 5e-5 \
-  --lr-image-encoder 5e-5 \
+  --lr-image-encoder 5e-6 \
   --lr-prompt-learner 5e-4 \
   --lr-adapter 1e-4 \
   --weight-decay 0.01 \
