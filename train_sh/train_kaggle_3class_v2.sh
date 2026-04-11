@@ -1,22 +1,22 @@
 #!/bin/bash
 
 # =============================================================================
-# DAiSEE Kaggle Training — 3-Class (Fix Mode Collapse)
+# DAiSEE Kaggle Training — 3-Class (Anti Mode-Collapse v3)
 # GPU: T4/P100 trên Kaggle
 #
-# Fixes:
-#   1. lr-image-encoder = 1e-6 (unfreeze nhẹ CLIP encoder)
-#   2. BỎ WeightedSampler → Focal Loss xử lý imbalance
-#   3. temperature = 0.1 (tránh double-scaling)
-#   4. temporal-layers = 2, num-segments = 12
-#   5. merge_3class=True (Very Low + Low → Low, 247 mẫu thay vì 34)
+# Fixes v3 (anti mode-collapse):
+#   1. --use-weighted-sampler (sqrt-freq: class 0=x10, class 1=x1, class 2=x1)
+#   2. focal-gamma 3.0 (higher = more penalty on easy majority class)
+#   3. drw-start-epoch 3 (kích hoạt class weight SỚM)
+#   4. tắt MI/DC loss (nhiễu khi model chưa học được gì)
+#   5. label-smoothing 0 (không làm mềm target khi đang collapse)
 # =============================================================================
 
 ROOT="/kaggle/input/datasets/mngochocsupham/daisee/DAiSEE_data"
 ANN_DIR="${ROOT}/Labels"
 
 echo "============================================"
-echo "  DAiSEE Kaggle 3-Class Training (Fix v2)"
+echo "  DAiSEE Kaggle 3-Class Training (Anti-Collapse v3)"
 echo "  Root: $ROOT"
 echo "============================================"
 
@@ -53,14 +53,17 @@ python3 main.py \
   --load_and_tune_prompt_learner True \
   --temperature 0.1 \
   --loss-type focal \
-  --focal-gamma 2.0 \
-  --lambda_mi 0.05 \
-  --lambda_dc 0.05 \
-  --mi-warmup 5 \
-  --mi-ramp 10 \
-  --dc-warmup 5 \
-  --dc-ramp 10 \
+  --focal-gamma 3.0 \
+  --lambda_mi 0.0 \
+  --lambda_dc 0.0 \
+  --mi-warmup 0 \
+  --mi-ramp 0 \
+  --dc-warmup 0 \
+  --dc-ramp 0 \
   --max-samples-per-class 0 \
+  --label-smoothing 0.0 \
+  --use-weighted-sampler \
+  --drw-start-epoch 3 \
   --mixup-alpha 0.0 \
   --use-amp \
   --use-ema \

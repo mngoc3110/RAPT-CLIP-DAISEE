@@ -113,6 +113,7 @@ loss_group.add_argument('--mixup-alpha', type=float, default=0.2, help='Alpha va
 # NEW LDAM ARGS
 loss_group.add_argument('--ldam-max-m', type=float, default=0.5, help='Max margin for LDAM Loss.')
 loss_group.add_argument('--ldam-s', type=float, default=30.0, help='Scaling factor for LDAM Loss.')
+loss_group.add_argument('--drw-start-epoch', type=int, default=5, help='Epoch to switch Focal Loss from Phase1 (no weights) to Phase2 (class weights). Default 5.')
 
 # --- Model & Input ---
 model_group = parser.add_argument_group('Model & Input', 'Parameters for model architecture and data handling')
@@ -270,7 +271,7 @@ def run_training(args: argparse.Namespace) -> None:
         
         # DRW Phase 2: Prepare weighted criterion for later activation
         drw_criterion_phase2 = None
-        drw_start_epoch = 10  # Switch to Phase 2 at epoch 10
+        drw_start_epoch = getattr(args, 'drw_start_epoch', 5)  # Configurable via --drw-start-epoch
         if cls_num_list and sum(cls_num_list) > 0:
             max_count = max(cls_num_list)
             # Boost-only weights: minority gets boosted, majority stays at 1.0
