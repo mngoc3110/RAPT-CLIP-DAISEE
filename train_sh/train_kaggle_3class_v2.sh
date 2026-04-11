@@ -15,13 +15,20 @@ ROOT="/kaggle/input/datasets/mngochocsupham/daisee/DAiSEE_data"
 ANN_DIR="${ROOT}/Labels"
 
 echo "============================================"
-echo "  DAiSEE Kaggle — Gaze+CLIP Fusion v6"
+echo "  DAiSEE Kaggle — Gaze+CLIP Fusion v7"
 echo "  Root: $ROOT"
 echo "============================================"
 
+# Extract Gaze Features if not already extracted
+if [ ! -d "/kaggle/working/Gaze_Features" ]; then
+    echo "Extracting Gaze_Features.zip..."
+    unzip -q Gaze_Features.zip -d /kaggle/working/
+    echo "Gaze_Features extraction complete!"
+fi
+
 python3 main.py \
   --mode train \
-  --exper-name DAiSEE_GazeFusion_v6 \
+  --exper-name DAiSEE_GazeFusion_v7 \
   --dataset DAiSEE \
   --gpu 0 \
   --epochs 30 \

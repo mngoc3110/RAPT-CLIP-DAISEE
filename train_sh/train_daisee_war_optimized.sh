@@ -15,22 +15,27 @@ ANN_DIR="${ROOT}/Labels"
 
 
 
-echo "Starting DAiSEE 4-Level Engagement Training (WAR Optimized)..."
+echo "Starting DAiSEE 4-Level Engagement Training (WAR / Gaze Fusion)..."
 echo "Root: $ROOT"
 
-
+# Extract Gaze Features if not already extracted
+if [ ! -d "/kaggle/working/Gaze_Features" ]; then
+    echo "Extracting Gaze_Features.zip..."
+    unzip -q Gaze_Features.zip -d /kaggle/working/
+    echo "Gaze_Features extraction complete!"
+fi
 
 python3 main.py \
   --mode train \
   --exper-name DAiSEE_3Level_WAR_Optimized \
   --dataset DAiSEE \
   --gpu 0 \
-  --epochs 25 \
+  --epochs 30 \
   --batch-size 8 \
   --workers 2 \
   --optimizer AdamW \
   --lr 5e-5 \
-  --lr-image-encoder 1e-6 \
+  --lr-image-encoder 5e-6 \
   --lr-prompt-learner 3e-4 \
   --lr-adapter 1e-4 \
   --weight-decay 0.005 \
@@ -51,23 +56,24 @@ python3 main.py \
   --class-token-position end \
   --class-specific-contexts True \
   --load_and_tune_prompt_learner True \
-  --temperature 0.07 \
+  --temperature 0.1 \
   --loss-type focal \
-  --lambda_mi 0.1 \
-  --lambda_dc 0.1 \
-  --mi-warmup 5 \
-  --mi-ramp 10 \
-  --dc-warmup 5 \
-  --dc-ramp 10 \
+  --focal-gamma 2.0 \
+  --drw-start-epoch 0 \
+  --lambda_mi 0.0 \
+  --lambda_dc 0.0 \
+  --mi-warmup 0 \
+  --mi-ramp 0 \
+  --dc-warmup 0 \
+  --dc-ramp 0 \
   --max-samples-per-class 0 \
-  --use-weighted-sampler \
   --mixup-alpha 0.0 \
   --use-amp \
   --use-ema \
-  --ema-decay 0.99 \
-  --ema-start-epoch 5 \
+  --ema-decay 0.998 \
+  --ema-start-epoch 3 \
   --grad-clip 1.0 \
-  --early-stop 8 \
+  --early-stop 10 \
   --no-tta
 
 echo "Training Finished!"
