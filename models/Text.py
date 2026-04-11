@@ -676,3 +676,50 @@ class_descriptor_daisee4 = [
     "A student with pressed lips, clenched jaw, tense facial muscles, narrowed eyes staring hard at the screen, showing frustration.",
 ]
 
+
+# ============================================================================
+# DAiSEE 4-Level Engagement — Prompt Ensemble v2 (Morphological Features)
+# Phiên bản cải tiến: Mô tả đặc trưng hình thái học cụ thể và đo được
+#   trạng thái mắt (closed/half/open/wide), hướng nhìn (forward/sideways/down)
+#   vị trí đầu (upright/drooping/leaning forward)
+# Giúp CLIP tạo decision boundary rõ ràng hơn giữa các class ordinal gần nhau
+# Dùng bằng cách thay prompt_ensemble_daisee_4level thành _v2 trong builders.py
+# ============================================================================
+prompt_ensemble_daisee_4level_v2 = [
+    [ # Very Low Engagement (0) — eyes FULLY CLOSED, sleeping
+        "A webcam image of a student with both eyes fully closed and head drooping, asleep at desk.",
+        "A student with eyes shut tight, mouth slightly open, head tilted down, sleeping during class.",
+        "A student whose eyelids are completely closed and chin nearly resting on chest, unconscious.",
+        "A student with fully closed eyes and motionless face, head tilted forward at the screen.",
+        "A student with shut eyelids, slack jaw, head tilted to one side, showing no awareness.",
+        "A student with completely closed eyes, no facial movement, head sinking toward the desk.",
+        "A student with fully closed eyes and drooping head, completely unresponsive.",
+    ],
+    [ # Low Engagement (1) — eyes OPEN but gaze AVERTED or glazed
+        "A student with open eyes looking sideways away from the screen, not watching the lesson.",
+        "A student with a vacant glassy stare, eyes open but gaze drifting toward the wall.",
+        "A student with heavy eyelids half-open, yawning, head propped on hand, bored.",
+        "A student whose open eyes look downward toward the desk instead of at the screen.",
+        "A student with tired droopy eyelids, mouth open mid-yawn, head slightly lowered.",
+        "A student with open unfocused eyes staring blankly at a point away from the screen.",
+        "A student looking sideways with open but disinterested eyes, head turned from camera.",
+    ],
+    [ # High Engagement (2) — eyes OPEN, gaze FORWARD, calm neutral
+        "A student with open eyes looking directly at the screen, calm neutral face, upright posture.",
+        "A student quietly watching online content with open forward-looking eyes, composed expression.",
+        "A student maintaining eye contact with the camera, head upright, no strong facial expression.",
+        "A student with clear open eyes fixed on the screen and a calm attentive expression.",
+        "A student with steady forward gaze, slightly parted lips, sitting upright watching the lesson.",
+        "A student with open eyes calmly watching the screen, head upright, relaxed neutral face.",
+        "A student sitting upright with forward-looking open eyes and a composed neutral expression.",
+    ],
+    [ # Very High Engagement (3) — eyes WIDE OPEN, raised brows, leaning forward
+        "A student leaning forward with wide-open eyes and raised eyebrows, visibly excited by content.",
+        "A student with unusually wide alert eyes and raised brows, staring intensely at the screen.",
+        "A student with widened eyes and slightly parted lips, body leaning toward the camera.",
+        "A student whose eyes are wide open and eyebrows clearly raised, face alive with curiosity.",
+        "A student with bright wide eyes and an animated expression, deeply absorbed in the lesson.",
+        "A student with raised eyebrows, enlarged eye openings, leaning forward with enthusiasm.",
+        "A student with intensely focused wide-open eyes and a slightly open mouth of active interest.",
+    ],
+]
