@@ -26,8 +26,8 @@ python3 main.py \
   --dataset DAiSEE \
   --gpu 0 \
   --epochs 25 \
-  --batch-size 16 \
-  --workers 4 \
+  --batch-size 8 \
+  --workers 2 \
   --optimizer AdamW \
   --lr 5e-5 \
   --lr-image-encoder 1e-6 \
@@ -37,7 +37,7 @@ python3 main.py \
   --scheduler cosine \
   --warmup-epochs 3 \
   --temporal-layers 2 \
-  --num-segments 12 \
+  --num-segments 8 \
   --duration 1 \
   --image-size 224 \
   --seed 42 \
@@ -61,7 +61,7 @@ python3 main.py \
   --dc-warmup 5 \
   --dc-ramp 10 \
   --max-samples-per-class 0 \
-  --mixup-alpha 0.2 \
+  --mixup-alpha 0.0 \
   --use-amp \
   --use-ema \
   --ema-decay 0.998 \
