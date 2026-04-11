@@ -60,7 +60,7 @@ python3 main.py \
   --print-freq 50 \
   --root-dir "$ROOT" \
   --train-annotation "$ANN_DIR/TrainLabels.csv" \
-  --val-annotation "$ANN_DIR/TestLabels.csv" \
+  --val-annotation "$ANN_DIR/ValidationLabels.csv" \
   --test-annotation "$ANN_DIR/TestLabels.csv" \
   --text-type prompt_ensemble \
   --contexts-number 8 \
