@@ -1,26 +1,25 @@
 #!/bin/bash
 
 # =============================================================================
-# DAiSEE 3-Class Engagement — LINEAR CLASSIFIER HEAD + Gaze Fusion (v11)
+# DAiSEE 3-Class Engagement — LINEAR CLASSIFIER HEAD + Gaze Fusion (v12)
 #
-# ROOT CAUSE of v10 mode collapse:
-#   video_features were L2-normalized to unit sphere BEFORE classifier head
-#   → all inputs had magnitude 1.0 → gradient diversity killed → logits ~0.07
+# ROOT CAUSE of v11 validation mode collapse:
+#   WeightedRandomSampler makes training distribution balanced, but validation
+#   sees the original skewed distribution (88/882/814) → model can't generalize
 #
-# Fix v11:
-#   1. Classifier head receives RAW (un-normalized) features from project_fc
-#   2. LayerNorm inside head normalizes properly for gradient flow
-#   3. Temperature = 1.0 (no extra scaling needed for linear head)
-#   4. Focal Loss + WeightedRandomSampler to fight class imbalance
-#   5. Higher LR (1e-3) for classifier head to learn faster
-#   6. DRW Phase 2 at epoch 5 for re-weighting
+# Fix v12:
+#   1. REMOVE WeightedRandomSampler (same distribution train & val)
+#   2. Class-weighted Focal Loss from epoch 0 (--drw-start-epoch 0)
+#   3. Higher image encoder LR (2e-5) to learn discriminative features
+#   4. Temperature 0.3 for sharper classifier predictions
+#   5. Focal gamma 3.0 to ignore easy majority-class examples
 # =============================================================================
 
 ROOT="/kaggle/input/datasets/mngochocsupham/daisee/DAiSEE_data"
 ANN_DIR="${ROOT}/Labels"
 
 echo "============================================"
-echo "  DAiSEE — Classifier Head + Gaze (v11)"
+echo "  DAiSEE — Classifier Head + Gaze (v12)"
 echo "  Root: $ROOT"
 echo "============================================"
 
@@ -33,7 +32,7 @@ fi
 
 python3 main.py \
   --mode train \
-  --exper-name DAiSEE_ClassifierHead_v11 \
+  --exper-name DAiSEE_ClassifierHead_v12 \
   --dataset DAiSEE \
   --gpu 0 \
   --epochs 30 \
@@ -41,7 +40,7 @@ python3 main.py \
   --workers 2 \
   --optimizer AdamW \
   --lr 1e-3 \
-  --lr-image-encoder 5e-6 \
+  --lr-image-encoder 2e-5 \
   --lr-prompt-learner 3e-4 \
   --lr-adapter 1e-4 \
   --weight-decay 0.01 \
@@ -62,12 +61,11 @@ python3 main.py \
   --class-token-position end \
   --class-specific-contexts True \
   --load_and_tune_prompt_learner True \
-  --temperature 0.5 \
+  --temperature 0.3 \
   --use-classifier-head \
   --loss-type focal \
-  --focal-gamma 2.0 \
-  --use-weighted-sampler \
-  --drw-start-epoch 5 \
+  --focal-gamma 3.0 \
+  --drw-start-epoch 0 \
   --lambda_mi 0.0 \
   --lambda_dc 0.0 \
   --mi-warmup 0 \
