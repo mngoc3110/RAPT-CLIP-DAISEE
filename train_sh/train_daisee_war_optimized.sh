@@ -62,7 +62,7 @@ python3 main.py \
   --class-token-position end \
   --class-specific-contexts True \
   --load_and_tune_prompt_learner True \
-  --temperature 1.0 \
+  --temperature 0.5 \
   --use-classifier-head \
   --loss-type focal \
   --focal-gamma 2.0 \

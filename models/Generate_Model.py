@@ -105,8 +105,9 @@ class GenerateModel(nn.Module):
                 nn.Dropout(0.2),
                 nn.Linear(256, num_cls)
             )
-            # Initialize final layer with small weights to start near uniform predictions
-            nn.init.xavier_normal_(self.classifier_head[-1].weight, gain=0.1)
+            # Initialize: default xavier (gain=1.0) for proper logit magnitude
+            # gain=0.1 produced logits ~0.07 → softmax near-uniform → mode collapse
+            nn.init.xavier_normal_(self.classifier_head[-1].weight)
             nn.init.zeros_(self.classifier_head[-1].bias)
             print(f"=> Using LINEAR CLASSIFIER HEAD ({num_cls} classes) with LayerNorm + GELU")
 
