@@ -94,6 +94,18 @@ class GenerateModel(nn.Module):
         )
         self.alpha_gaze = nn.Parameter(torch.tensor(0.0))
 
+        # Linear Classifier Head (bypasses CLIP text similarity)
+        self.use_classifier_head = getattr(args, 'use_classifier_head', False)
+        if self.use_classifier_head:
+            num_cls = self.num_classes if self.is_ensemble else len(input_text)
+            self.classifier_head = nn.Sequential(
+                nn.Linear(512, 256),
+                nn.ReLU(),
+                nn.Dropout(0.3),
+                nn.Linear(256, num_cls)
+            )
+            print(f"=> Using LINEAR CLASSIFIER HEAD ({num_cls} classes) instead of CLIP text similarity")
+
         # MoCo Initialization
         if hasattr(args, 'use_moco') and args.use_moco:
             print("=> Initializing MoCoRank...")
@@ -254,8 +266,10 @@ class GenerateModel(nn.Module):
             returned_moco_features = video_features
 
         ################# Classification ###################
-        # Calculate logits
-        if self.is_ensemble:
+        if self.use_classifier_head:
+            # Direct classification — bypasses text embedding similarity
+            output = self.classifier_head(video_features.float())
+        elif self.is_ensemble:
             # Reshape text features for ensembling: (C*P, D) -> (C, P, D)
             text_features = text_features.view(self.num_classes, self.num_prompts_per_class, -1)
             # Normalize again just in case (optional but safe) - Robust version
@@ -267,7 +281,6 @@ class GenerateModel(nn.Module):
             
             # Average the logits across the prompts for each class
             output = torch.mean(logits, dim=2) / self.args.temperature
-
         else:
             output = video_features @ text_features.t() / self.args.temperature
 

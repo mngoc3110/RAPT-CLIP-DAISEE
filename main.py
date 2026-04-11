@@ -135,6 +135,7 @@ model_group.add_argument('--use-moco', action='store_true', help='Use MoCoRank f
 model_group.add_argument('--moco-k', type=int, default=4096, help='Queue size for MoCo.')
 model_group.add_argument('--moco-m', type=float, default=0.99, help='Momentum for MoCo.')
 model_group.add_argument('--moco-t', type=float, default=0.07, help='Temperature for MoCo.')
+model_group.add_argument('--use-classifier-head', action='store_true', help='Use linear classifier head instead of CLIP text-image similarity for classification. Essential for ordinal tasks like DAiSEE.')
 
 # ==================== Helper Functions ====================
 def setup_environment(args: argparse.Namespace) -> argparse.Namespace:
@@ -333,6 +334,8 @@ def run_training(args: argparse.Namespace) -> None:
         optimizer_grouped_parameters.append({"params": model.gaze_mlp.parameters(), "lr": args.lr_adapter})
     if hasattr(model, 'alpha_gaze'):
         optimizer_grouped_parameters.append({"params": [model.alpha_gaze], "lr": args.lr_adapter})
+    if hasattr(model, 'classifier_head'):
+        optimizer_grouped_parameters.append({"params": model.classifier_head.parameters(), "lr": args.lr})
 
     if args.optimizer == 'SGD':
         optimizer = torch.optim.SGD(optimizer_grouped_parameters, momentum=args.momentum, weight_decay=args.weight_decay)

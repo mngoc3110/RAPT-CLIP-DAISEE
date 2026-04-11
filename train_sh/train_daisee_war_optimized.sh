@@ -1,22 +1,29 @@
 #!/bin/bash
 
 # =============================================================================
-# DAiSEE 4-Level Engagement Training - MAXIMIZING WAR (Weighted Average Recall)
-# Classes: Very Low (0), Low (1), High (2), Very High (3)
-# 
-# Chiến lược cho WAR > 60:
-#   - BỎ WeightedRandomSampler để mô hình học theo phân bố tự nhiên (thiên về High/Very High).
-#   - Dùng Cross Entropy (ce) kết hợp Label Distribution Learning (LDL) thay vì LDAM.
-#   - Giữ nguyên EMA và LR cosin để đảm bảo tính ổn định.
+# DAiSEE 3-Class Engagement — LINEAR CLASSIFIER HEAD + Gaze Fusion (v10)
+#
+# Root cause: CLIP text embeddings for "High" vs "Very High" are identical
+# in cosine space → model cannot create decision boundary via similarity.
+#
+# Fix: Replace CLIP text-image similarity with a LEARNED linear classifier.
+# Visual backbone still uses CLIP pre-trained weights (frozen/low lr).
+# Classification is done by: classifier_head(video_features) → logits
+#
+# Components:
+#   1. Classifier Head: Linear(512→256→3) — learns proper boundaries
+#   2. OrdinalCE Loss: Soft labels respect label ordering
+#   3. Gaze Fusion: alpha_gaze * gaze_mlp(gaze_avg) added to video_features
+#   4. Image encoder lr=5e-6: Gentle fine-tune, no identity overfit
 # =============================================================================
 
 ROOT="/kaggle/input/datasets/mngochocsupham/daisee/DAiSEE_data"
 ANN_DIR="${ROOT}/Labels"
 
-
-
-echo "Starting DAiSEE 4-Level Engagement Training (WAR / Gaze Fusion)..."
-echo "Root: $ROOT"
+echo "============================================"
+echo "  DAiSEE — Classifier Head + Gaze (v10)"
+echo "  Root: $ROOT"
+echo "============================================"
 
 # Extract Gaze Features if not already extracted
 if [ ! -d "/kaggle/working/Gaze_Features" ]; then
@@ -27,20 +34,20 @@ fi
 
 python3 main.py \
   --mode train \
-  --exper-name DAiSEE_3Level_WAR_Optimized \
+  --exper-name DAiSEE_ClassifierHead_v10 \
   --dataset DAiSEE \
   --gpu 0 \
   --epochs 30 \
   --batch-size 8 \
   --workers 2 \
   --optimizer AdamW \
-  --lr 5e-5 \
+  --lr 5e-4 \
   --lr-image-encoder 5e-6 \
   --lr-prompt-learner 3e-4 \
   --lr-adapter 1e-4 \
-  --weight-decay 0.005 \
-  --milestones 10 15 20 \
-  --gamma 0.1 \
+  --weight-decay 0.01 \
+  --scheduler cosine \
+  --warmup-epochs 2 \
   --temporal-layers 1 \
   --num-segments 8 \
   --duration 1 \
@@ -57,8 +64,8 @@ python3 main.py \
   --class-specific-contexts True \
   --load_and_tune_prompt_learner True \
   --temperature 0.1 \
-  --loss-type focal \
-  --focal-gamma 2.0 \
+  --use-classifier-head \
+  --loss-type ordinal_ce \
   --drw-start-epoch 0 \
   --lambda_mi 0.0 \
   --lambda_dc 0.0 \
