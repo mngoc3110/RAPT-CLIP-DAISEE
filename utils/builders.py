@@ -40,7 +40,10 @@ def build_model(args: argparse.Namespace, input_text: list) -> torch.nn.Module:
             if "image_encoder" in name:
                 param.requires_grad = True
 
-    trainable_params_keywords = ["temporal_net", "prompt_learner", "temporal_net_body", "project_fc", "face_adapter"]
+    trainable_params_keywords = [
+        "temporal_net", "prompt_learner", "temporal_net_body", "project_fc", "face_adapter",
+        "classifier_head", "gaze_mlp", "alpha_gaze"
+    ]
     
     print('\nTrainable parameters:')
     for name, param in model.named_parameters():
