@@ -99,12 +99,16 @@ class GenerateModel(nn.Module):
         if self.use_classifier_head:
             num_cls = self.num_classes if self.is_ensemble else len(input_text)
             self.classifier_head = nn.Sequential(
+                nn.LayerNorm(512),
                 nn.Linear(512, 256),
-                nn.ReLU(),
-                nn.Dropout(0.3),
+                nn.GELU(),
+                nn.Dropout(0.2),
                 nn.Linear(256, num_cls)
             )
-            print(f"=> Using LINEAR CLASSIFIER HEAD ({num_cls} classes) instead of CLIP text similarity")
+            # Initialize final layer with small weights to start near uniform predictions
+            nn.init.xavier_normal_(self.classifier_head[-1].weight, gain=0.1)
+            nn.init.zeros_(self.classifier_head[-1].bias)
+            print(f"=> Using LINEAR CLASSIFIER HEAD ({num_cls} classes) with LayerNorm + GELU")
 
         # MoCo Initialization
         if hasattr(args, 'use_moco') and args.use_moco:
@@ -227,8 +231,11 @@ class GenerateModel(nn.Module):
             gaze_avg = gaze_features.mean(dim=1)
             gaze_encoded = self.gaze_mlp(gaze_avg.type(self.dtype))
             video_features = video_features + self.alpha_gaze * gaze_encoded
+        
+        # Keep raw features for classifier head (before L2 norm kills gradient diversity)
+        video_features_raw = video_features
             
-        # Robust normalization to avoid NaN on MPS
+        # Robust normalization to avoid NaN on MPS (for CLIP similarity path)
         video_features = video_features / (video_features.norm(dim=-1, keepdim=True) + 1e-6)
 
         ################# Text Part ###################
@@ -267,8 +274,8 @@ class GenerateModel(nn.Module):
 
         ################# Classification ###################
         if self.use_classifier_head:
-            # Direct classification — bypasses text embedding similarity
-            output = self.classifier_head(video_features.float())
+            # Use raw (un-normalized) features for proper gradient flow
+            output = self.classifier_head(video_features_raw.float()) / self.args.temperature
         elif self.is_ensemble:
             # Reshape text features for ensembling: (C*P, D) -> (C, P, D)
             text_features = text_features.view(self.num_classes, self.num_prompts_per_class, -1)
