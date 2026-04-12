@@ -1,22 +1,22 @@
 #!/bin/bash
 
 # =============================================================================
-# DAiSEE 3-Class Engagement — COSINE CLASSIFIER + Gaze Fusion (v15)
+# DAiSEE 3-Class Engagement — COSINE CLASSIFIER + Gaze Fusion (v16)
 #
-# v14 collapsed to Class 0 (over-compensation: weight 15.0 at epoch 0).
+# v13: DRW@0, cap 5.0, gamma 1.0, LR 1e-3 → Epoch 0 DIVERSE, Epoch 2 COLLAPSE
+# v14: DRW@0, cap 15.0, gamma 2.0, LR 5e-4 → Over-compensated to Class 0
+# v15: DRW@3, cap 8.0, gamma 2.0, LR 5e-4 → No weights = collapse to Class 1
 #
-# v15 Balanced Stability:
-#   1. DRW deferred to Epoch 3 (learn clean features first, then rebalance)
-#   2. Weight Cap 8.0 (moderate, not extreme)
-#   3. Focal Gamma 2.0 + LR 5e-4 + WD 0.02 (from v14)
-#   4. Tau init 12.0 (softer confidence)
+# v16 = Best of v13 + v14:
+#   DRW@0 + cap 5.0 (PROVEN diverse in v13) + LR 5e-4 (STABLE from v14)
+#   + Focal Gamma 2.0 + WD 0.02 + Tau 12.0
 # =============================================================================
 
 ROOT="/kaggle/input/datasets/mngochocsupham/daisee/DAiSEE_data"
 ANN_DIR="${ROOT}/Labels"
 
 echo "============================================"
-echo "  DAiSEE — Cosine Classifier + Gaze (v15)"
+echo "  DAiSEE — Cosine Classifier + Gaze (v16)"
 echo "  Root: $ROOT"
 echo "============================================"
 
@@ -29,7 +29,7 @@ fi
 
 python3 main.py \
   --mode train \
-  --exper-name DAiSEE_CosineClassifier_v15 \
+  --exper-name DAiSEE_CosineClassifier_v16 \
   --dataset DAiSEE \
   --gpu 0 \
   --epochs 30 \
@@ -62,7 +62,7 @@ python3 main.py \
   --use-classifier-head \
   --loss-type focal \
   --focal-gamma 2.0 \
-  --drw-start-epoch 3 \
+  --drw-start-epoch 0 \
   --lambda_mi 0.0 \
   --lambda_dc 0.0 \
   --mi-warmup 0 \
