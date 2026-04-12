@@ -275,8 +275,8 @@ def run_training(args: argparse.Namespace) -> None:
         drw_start_epoch = getattr(args, 'drw_start_epoch', 5)  # Configurable via --drw-start-epoch
         if cls_num_list and sum(cls_num_list) > 0:
             max_count = max(cls_num_list)
-            # Boost-only weights: capped at 15.0 for strong class rebalancing
-            cls_weights = torch.FloatTensor([min(15.0, max(1.0, max_count / (c + 1e-6))) for c in cls_num_list])
+            # Boost-only weights: capped at 8.0 for balanced class rebalancing
+            cls_weights = torch.FloatTensor([min(8.0, max(1.0, max_count / (c + 1e-6))) for c in cls_num_list])
             print(f"=> [DRW Phase 2 prepared] Will activate at epoch {drw_start_epoch} with weights: [{', '.join([f'{w:.2f}' for w in cls_weights.tolist()])}]")
             drw_criterion_phase2 = FocalLoss(gamma=gamma, weight=cls_weights.to(args.device),
                                               label_smoothing=args.label_smoothing).to(args.device)
