@@ -124,8 +124,8 @@ class GenerateModel(nn.Module):
         self.use_classifier_head = getattr(args, 'use_classifier_head', False)
         if self.use_classifier_head:
             num_cls = self.num_classes if self.is_ensemble else len(input_text)
-            self.classifier_head = CosineClassifier(512, num_cls, tau_init=16.0)
-            print(f"=> Using COSINE CLASSIFIER ({num_cls} classes, tau_init=16.0)")
+            self.classifier_head = CosineClassifier(512, num_cls, tau_init=12.0)
+            print(f"=> Using COSINE CLASSIFIER ({num_cls} classes, tau_init=12.0)")
 
         # MoCo Initialization
         if hasattr(args, 'use_moco') and args.use_moco:

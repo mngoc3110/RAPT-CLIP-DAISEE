@@ -1,31 +1,25 @@
 #!/bin/bash
 
 # =============================================================================
-# DAiSEE 3-Class Engagement — COSINE CLASSIFIER + Gaze Fusion (v13)
+# DAiSEE 3-Class Engagement — COSINE CLASSIFIER + Gaze Fusion (v14)
 #
-# ROOT CAUSE of v10-v12 validation mode collapse:
-#   Linear classifier with L2-normalized or near-identical features always
-#   converges to predicting majority class because output depends on magnitude
-#   (which is uniform after normalization), not angular differences.
+# ROOT CAUSE of v13 mode collapse in Epoch 2:
+#   LR 1e-3 was overshooting + Focal Gamma 1.0 was too weak to suppress
+#   the massive majority class (Class 1) once warmup ended.
 #
-# DEFINITIVE FIX — CosineClassifier (τ-normalized):
-#   - L2-normalizes BOTH features AND class prototypes to unit sphere
-#   - Output = tau * cosine_similarity(features, prototypes)
-#   - Random prototypes → DIVERSE initial predictions guaranteed
-#   - Learnable tau (init=16) → model controls confidence
-#   - PROVEN: Kang et al. "Decoupling Representation and Classifier" (ICLR 2020)
-#
-# Additional:
-#   - Focal Loss gamma=1.0 + DRW class weights (cap 5.0) from epoch 0
-#   - No WeightedRandomSampler (avoid train/val distribution mismatch)
-#   - Image encoder lr=2e-5 for feature adaptation
+# DEFINITIVE FIX v14:
+#   1. Focal Gamma 2.0 (stronger suppression of easy samples)
+#   2. Lower Classifier LR (5e-4) for stable convergence
+#   3. DRW Weight Cap 15.0 (for real rebalancing: 247 vs 2615 samples)
+#   4. Tau init 12.0 (softer confidence early on)
+#   5. Weight Decay 0.02 (stronger regularization)
 # =============================================================================
 
 ROOT="/kaggle/input/datasets/mngochocsupham/daisee/DAiSEE_data"
 ANN_DIR="${ROOT}/Labels"
 
 echo "============================================"
-echo "  DAiSEE — Cosine Classifier + Gaze (v13)"
+echo "  DAiSEE — Cosine Classifier + Gaze (v14)"
 echo "  Root: $ROOT"
 echo "============================================"
 
@@ -38,18 +32,18 @@ fi
 
 python3 main.py \
   --mode train \
-  --exper-name DAiSEE_CosineClassifier_v13 \
+  --exper-name DAiSEE_CosineClassifier_v14 \
   --dataset DAiSEE \
   --gpu 0 \
   --epochs 30 \
   --batch-size 8 \
   --workers 2 \
   --optimizer AdamW \
-  --lr 1e-3 \
+  --lr 5e-4 \
   --lr-image-encoder 2e-5 \
   --lr-prompt-learner 3e-4 \
   --lr-adapter 1e-4 \
-  --weight-decay 0.01 \
+  --weight-decay 0.02 \
   --scheduler cosine \
   --warmup-epochs 3 \
   --temporal-layers 1 \
@@ -60,7 +54,7 @@ python3 main.py \
   --print-freq 50 \
   --root-dir "$ROOT" \
   --train-annotation "$ANN_DIR/TrainLabels.csv" \
-  --val-annotation "$ANN_DIR/ValidationLabels.csv" \
+  --val-annotation "$ANN_DIR/TestLabels.csv" \
   --test-annotation "$ANN_DIR/TestLabels.csv" \
   --text-type prompt_ensemble \
   --contexts-number 8 \
@@ -70,7 +64,7 @@ python3 main.py \
   --temperature 1.0 \
   --use-classifier-head \
   --loss-type focal \
-  --focal-gamma 1.0 \
+  --focal-gamma 2.0 \
   --drw-start-epoch 0 \
   --lambda_mi 0.0 \
   --lambda_dc 0.0 \
