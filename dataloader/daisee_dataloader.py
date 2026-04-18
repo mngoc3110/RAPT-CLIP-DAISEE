@@ -51,51 +51,47 @@ class DAiSEEDataset(data.Dataset):
             ])
 
     def _make_dataset(self):
-        samples = []
-        if not os.path.exists(self.annotation_file):
-            print(f"Error: Annotation file {self.annotation_file} not found.")
-            return samples
-            
-        print(f"Loading annotations from: {self.annotation_file}")
-        try:
-            df = pd.read_csv(self.annotation_file)
-            # Merge extra annotation files (e.g., train + val → more training data)
-            for extra_file in self.extra_annotation_files:
-                if os.path.exists(extra_file):
-                    extra_df = pd.read_csv(extra_file)
-                    df = pd.concat([df, extra_df], ignore_index=True)
-                    print(f"  + Merged: {extra_file} ({len(extra_df)} rows)")
-        except Exception as e:
-            print(f"Error reading CSV: {e}")
-            return samples
-
-        if 'Train' in self.annotation_file or self.mode == 'train':
-            split_dir = 'Train'
-        elif 'Validation' in self.annotation_file or self.mode == 'val':
-            split_dir = 'Validation'
-        elif 'Test' in self.annotation_file or self.mode == 'test':
-            split_dir = 'Test'
-        else:
-            split_dir = 'Train'
-
-        print(f"Processing entries for {self.mode}...")
+        all_samples = []
+        files_to_load = [self.annotation_file] + self.extra_annotation_files
         
-        for _, row in tqdm(df.iterrows(), total=len(df), desc=f"Loading {self.mode}"):
-            clip_id_ext = row['ClipID']
-            if not isinstance(clip_id_ext, str):
+        for ann_file in files_to_load:
+            if not os.path.exists(ann_file):
+                print(f"Warning: Annotation file {ann_file} not found. Skipping.")
                 continue
-            clip_id = os.path.splitext(clip_id_ext)[0]
-            subject_id = clip_id[:6]
-            label = int(row[self.label_col])
-            
-            if self.merge_3class:
-                # Merge to 3 classes: VeryLow(0)+Low(1) → 0, High(2) → 1, VeryHigh(3) → 2
-                label_map = {0: 0, 1: 0, 2: 1, 3: 2}
-                label = label_map[label]
                 
-            clip_dir = os.path.join(self.root_dir, 'DataSet', split_dir, subject_id, clip_id)
-            samples.append((clip_dir, label, clip_id_ext))
+            print(f"Loading annotations from: {ann_file}")
+            try:
+                df = pd.read_csv(ann_file)
+                # Resolve split directory for THIS specific file
+                if 'Train' in ann_file:
+                    current_split_dir = 'Train'
+                elif 'Validation' in ann_file:
+                    current_split_dir = 'Validation'
+                elif 'Test' in ann_file:
+                    current_split_dir = 'Test'
+                else:
+                    # Fallback to mode if not in filename
+                    current_split_dir = 'Train' if self.mode == 'train' else ('Validation' if self.mode == 'val' else 'Test')
+                
+                for _, row in tqdm(df.iterrows(), total=len(df), desc=f"Processing {os.path.basename(ann_file)}"):
+                    clip_id_ext = row['ClipID']
+                    if not isinstance(clip_id_ext, str):
+                        continue
+                    clip_id = os.path.splitext(clip_id_ext)[0]
+                    subject_id = clip_id[:6]
+                    label = int(row[self.label_col])
+                    
+                    if self.merge_3class:
+                        # Merge to 3 classes: VeryLow(0)+Low(1) → 0, High(2) → 1, VeryHigh(3) → 2
+                        label_map = {0: 0, 1: 0, 2: 1, 3: 2}
+                        label = label_map[label]
+                        
+                    clip_dir = os.path.join(self.root_dir, 'DataSet', current_split_dir, subject_id, clip_id)
+                    all_samples.append((clip_dir, label, clip_id_ext))
+            except Exception as e:
+                print(f"Error reading CSV {ann_file}: {e}")
 
+        samples = all_samples
         # Undersample majority classes (training only)
         if self.mode == 'train' and self.max_samples_per_class > 0:
             from collections import defaultdict

@@ -259,6 +259,11 @@ def build_dataloaders(args: argparse.Namespace) -> Tuple[torch.utils.data.DataLo
         
         max_samples = getattr(args, 'max_samples_per_class', 0)
         face_only = getattr(args, 'face_only_mode', False)
+        full_merge = getattr(args, 'full_train_merge', False)
+        
+        # Merge Train and Val if requested
+        extra_train_files = [val_annotation_file_path] if full_merge else []
+        
         train_data = DAiSEEDataset(
             root_dir=args.root_dir,
             annotation_file=train_annotation_file_path,
@@ -268,11 +273,16 @@ def build_dataloaders(args: argparse.Namespace) -> Tuple[torch.utils.data.DataLo
             image_size=args.image_size,
             max_samples_per_class=max_samples,
             merge_3class=False,
-            face_only_mode=face_only
+            face_only_mode=face_only,
+            extra_annotation_files=extra_train_files
         )
+        
+        # If merged, use Test as Val
+        val_ann = test_annotation_file_path if full_merge else val_annotation_file_path
+        
         val_data = DAiSEEDataset(
             root_dir=args.root_dir,
-            annotation_file=val_annotation_file_path,
+            annotation_file=val_ann,
             mode='val',
             num_segments=args.num_segments,
             duration=args.duration,

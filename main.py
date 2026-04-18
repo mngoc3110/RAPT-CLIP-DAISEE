@@ -131,6 +131,7 @@ model_group.add_argument('--crop-body', action='store_true', help='Crop body fro
 model_group.add_argument('--use-face-detection', action='store_true', help='Use OpenCV Haar Cascade for face detection in DAiSEE dataloader (SOTA technique).')
 model_group.add_argument('--temporal-dropout', type=float, default=0.0, help='Ratio of frames to drop during training (0.0-0.3). SOTA temporal augmentation.')
 model_group.add_argument('--augment-strength', type=str, default='mild', choices=['mild', 'strong'], help='Augmentation strength: mild (original) or strong (SOTA: GaussianBlur+Grayscale+RandomErasing).')
+model_group.add_argument('--full-train-merge', action='store_true', help='Merge Train and Validation sets into 1 and use Test as Val.')
 model_group.add_argument('--face-only-mode', action='store_true', help='Face-focused mode for webcam-only datasets (DAiSEE). Uses learnable face gate (70/30) fusion, multi-scale face crops for both streams, and increased face adapter capacity.')
 model_group.add_argument('--use-moco', action='store_true', help='Use MoCoRank for training.')
 model_group.add_argument('--moco-k', type=int, default=4096, help='Queue size for MoCo.')

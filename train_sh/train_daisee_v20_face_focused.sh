@@ -112,6 +112,7 @@ python3 main.py \
   --grad-clip 1.0 \
   --early-stop 15 \
   --face-only-mode \
+  --full-train-merge \
   --use-face-detection \
   --temporal-dropout 0.15 \
   --augment-strength strong
