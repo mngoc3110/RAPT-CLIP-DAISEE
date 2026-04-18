@@ -75,9 +75,10 @@ python3 main.py \
   --lr-image-encoder 5e-7 \
   --lr-prompt-learner 1e-4 \
   --lr-adapter 5e-5 \
+  --lr-classifier 1e-3 \
   --weight-decay 0.05 \
   --scheduler cosine \
-  --warmup-epochs 8 \
+  --warmup-epochs 3 \
   --temporal-layers 2 \
   --num-segments 8 \
   --duration 1 \

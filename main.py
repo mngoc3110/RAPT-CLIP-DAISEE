@@ -80,6 +80,7 @@ optim_group.add_argument('--lr', type=float, default=2e-5, help='Initial learnin
 optim_group.add_argument('--lr-image-encoder', type=float, default=1e-6, help='Learning rate for the image encoder part (set to 0 to freeze).')
 optim_group.add_argument('--lr-prompt-learner', type=float, default=2e-4, help='Learning rate for the prompt learner.')
 optim_group.add_argument('--lr-adapter', type=float, default=1e-4, help='Learning rate for the adapter.')
+optim_group.add_argument('--lr-classifier', type=float, default=1e-3, help='Learning rate for classifier head (higher for random init).')
 optim_group.add_argument('--weight-decay', type=float, default=0.0005, help='Weight decay for the optimizer.')
 optim_group.add_argument('--momentum', type=float, default=0.9, help='Momentum for the SGD optimizer.')
 optim_group.add_argument('--milestones', nargs='+', type=int, default=[10, 15], help='Epochs at which to decay the learning rate.')
@@ -338,7 +339,9 @@ def run_training(args: argparse.Namespace) -> None:
     if hasattr(model, 'alpha_gaze'):
         optimizer_grouped_parameters.append({"params": [model.alpha_gaze], "lr": args.lr_adapter})
     if hasattr(model, 'classifier_head'):
-        optimizer_grouped_parameters.append({"params": model.classifier_head.parameters(), "lr": args.lr})
+        lr_cls = getattr(args, 'lr_classifier', 1e-3)
+        optimizer_grouped_parameters.append({"params": model.classifier_head.parameters(), "lr": lr_cls})
+        print(f"=> Classifier head LR: {lr_cls} (50x higher than base LR for random init)")
     # Face-only mode: add body_adapter and face_gate to optimizer
     if hasattr(model, 'body_adapter'):
         optimizer_grouped_parameters.append({"params": model.body_adapter.parameters(), "lr": args.lr_adapter})
