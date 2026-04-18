@@ -82,7 +82,7 @@ class DAiSEEDataset(data.Dataset):
                  duration=1, image_size=224, max_samples_per_class=0, 
                  num_engagement_levels=3,
                  use_face_detection=False, temporal_dropout=0.0,
-                 augment_strength='mild'):
+                 augment_strength='mild', face_only_mode=False):
         self.root_dir = root_dir
         self.annotation_file = annotation_file
         self.mode = mode
@@ -93,6 +93,7 @@ class DAiSEEDataset(data.Dataset):
         self.frame_cache = {}
         self.max_samples_per_class = max_samples_per_class  # 0 = no cap
         self.num_engagement_levels = num_engagement_levels  # 3 = merged, 4 = original
+        self.face_only_mode = face_only_mode  # True = body stream uses wider face crop
         
         # === SOTA enhancements ===
         self.use_face_detection = use_face_detection
@@ -101,6 +102,8 @@ class DAiSEEDataset(data.Dataset):
         
         # Multi-scale crop ratios (SOTA technique from EfficientNet+TCN papers)
         self.crop_ratios = [0.4, 0.5, 0.6] if mode == 'train' else [0.5]
+        # Face-only mode uses wider crop for body stream (multi-scale face)
+        self.body_crop_ratios = [0.65, 0.75, 0.85] if (mode == 'train' and face_only_mode) else [0.75] if face_only_mode else None
         
         self.samples = self._make_dataset()
         
@@ -363,7 +366,10 @@ class DAiSEEDataset(data.Dataset):
                     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                     img_pil = Image.fromarray(frame_rgb)
                     face_images.append(self._apply_crop(img_pil, face_crop_params))
-                    body_images.append(img_pil)  # Full frame for body
+                    if body_crop_params is not None:
+                        body_images.append(self._apply_crop(img_pil, body_crop_params))
+                    else:
+                        body_images.append(img_pil)  # Full frame for body
                 else:
                     blank = Image.new('RGB', (self.image_size, self.image_size))
                     face_images.append(blank)
@@ -446,6 +452,13 @@ class DAiSEEDataset(data.Dataset):
             else:
                 face_crop_params = self._get_crop_params(ref_w, ref_h, crop_ratio)
             
+            # Body crop params: wider face crop in face_only_mode, or None (full frame)
+            if self.face_only_mode:
+                body_ratio = random.choice(self.body_crop_ratios)
+                body_crop_params = self._get_crop_params(ref_w, ref_h, body_ratio)
+            else:
+                body_crop_params = None
+            
             indices = self._get_indices(num_frames)
             for seg_ind in indices:
                 p = min(int(seg_ind), num_frames - 1)
@@ -453,7 +466,10 @@ class DAiSEEDataset(data.Dataset):
                     try:
                         img_pil = Image.open(os.path.join(frames_path, frame_files[p])).convert('RGB')
                         face_images.append(self._apply_crop(img_pil, face_crop_params))
-                        body_images.append(img_pil)  # Full frame for body
+                        if body_crop_params is not None:
+                            body_images.append(self._apply_crop(img_pil, body_crop_params))
+                        else:
+                            body_images.append(img_pil)  # Full frame for body
                     except:
                         blank = Image.new('RGB', (self.image_size, self.image_size))
                         face_images.append(blank)
@@ -483,8 +499,14 @@ class DAiSEEDataset(data.Dataset):
             else:
                 face_crop_params = self._get_crop_params(ref_w, ref_h, crop_ratio)
             
+            # Body crop params for face_only_mode
+            body_crop_params_video = None
+            if self.face_only_mode:
+                body_ratio = random.choice(self.body_crop_ratios)
+                body_crop_params_video = self._get_crop_params(ref_w, ref_h, body_ratio)
+            
             indices = self._get_indices(num_frames)
-            face_images, body_images = self._load_frames_from_video(video_path, indices, face_crop_params, None)
+            face_images, body_images = self._load_frames_from_video(video_path, indices, face_crop_params, body_crop_params_video)
         else:
             return blank_return
         

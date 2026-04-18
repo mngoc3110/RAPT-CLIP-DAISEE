@@ -40,7 +40,7 @@ def build_model(args: argparse.Namespace, input_text: list) -> torch.nn.Module:
             if "image_encoder" in name:
                 param.requires_grad = True
 
-    trainable_params_keywords = ["temporal_net", "prompt_learner", "temporal_net_body", "project_fc", "face_adapter"]
+    trainable_params_keywords = ["temporal_net", "prompt_learner", "temporal_net_body", "project_fc", "face_adapter", "body_adapter", "face_gate"]
     
     print('\nTrainable parameters:')
     for name, param in model.named_parameters():
@@ -259,6 +259,7 @@ def build_dataloaders(args: argparse.Namespace) -> Tuple[torch.utils.data.DataLo
         use_face_det = getattr(args, 'use_face_detection', False)
         temp_dropout = getattr(args, 'temporal_dropout', 0.0)
         aug_strength = getattr(args, 'augment_strength', 'mild')
+        face_only = getattr(args, 'face_only_mode', False)
         train_data = DAiSEEDataset(
             root_dir=args.root_dir,
             annotation_file=train_annotation_file_path,
@@ -270,7 +271,8 @@ def build_dataloaders(args: argparse.Namespace) -> Tuple[torch.utils.data.DataLo
             num_engagement_levels=4,
             use_face_detection=use_face_det,
             temporal_dropout=temp_dropout,
-            augment_strength=aug_strength
+            augment_strength=aug_strength,
+            face_only_mode=face_only
         )
         
         val_data = DAiSEEDataset(
@@ -280,7 +282,8 @@ def build_dataloaders(args: argparse.Namespace) -> Tuple[torch.utils.data.DataLo
             num_segments=args.num_segments,
             duration=args.duration,
             image_size=args.image_size,
-            num_engagement_levels=4
+            num_engagement_levels=4,
+            face_only_mode=face_only
         )
         
         test_data = DAiSEEDataset(
@@ -290,7 +293,8 @@ def build_dataloaders(args: argparse.Namespace) -> Tuple[torch.utils.data.DataLo
             num_segments=args.num_segments,
             duration=args.duration,
             image_size=args.image_size,
-            num_engagement_levels=4
+            num_engagement_levels=4,
+            face_only_mode=face_only
         )
         
         sampler = None

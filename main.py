@@ -128,6 +128,7 @@ model_group.add_argument('--crop-body', action='store_true', help='Crop body fro
 model_group.add_argument('--use-face-detection', action='store_true', help='Use OpenCV Haar Cascade for face detection in DAiSEE dataloader (SOTA technique).')
 model_group.add_argument('--temporal-dropout', type=float, default=0.0, help='Ratio of frames to drop during training (0.0-0.3). SOTA temporal augmentation.')
 model_group.add_argument('--augment-strength', type=str, default='mild', choices=['mild', 'strong'], help='Augmentation strength: mild (original) or strong (SOTA: GaussianBlur+Grayscale+RandomErasing).')
+model_group.add_argument('--face-only-mode', action='store_true', help='Face-focused mode for webcam-only datasets (DAiSEE). Uses learnable face gate (70/30) fusion, multi-scale face crops for both streams, and increased face adapter capacity.')
 model_group.add_argument('--use-moco', action='store_true', help='Use MoCoRank for training.')
 model_group.add_argument('--moco-k', type=int, default=4096, help='Queue size for MoCo.')
 model_group.add_argument('--moco-m', type=float, default=0.99, help='Momentum for MoCo.')
@@ -310,6 +311,14 @@ def run_training(args: argparse.Namespace) -> None:
         {"params": model.project_fc.parameters(), "lr": args.lr},
         {"params": model.face_adapter.parameters(), "lr": args.lr_adapter}
     ]
+    # Face-only mode: add body_adapter and face_gate to optimizer
+    if getattr(args, 'face_only_mode', False):
+        optimizer_grouped_parameters.append(
+            {"params": model.body_adapter.parameters(), "lr": args.lr_adapter}
+        )
+        optimizer_grouped_parameters.append(
+            {"params": [model.face_gate], "lr": args.lr}
+        )
 
     if args.optimizer == 'SGD':
         optimizer = torch.optim.SGD(optimizer_grouped_parameters, momentum=args.momentum, weight_decay=args.weight_decay)

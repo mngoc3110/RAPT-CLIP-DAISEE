@@ -11,6 +11,7 @@ class GenerateModel(nn.Module):
     def __init__(self, input_text, clip_model, args):
         super().__init__()
         self.args = args
+        self.face_only_mode = getattr(args, 'face_only_mode', False)
         
         self.is_ensemble = any(isinstance(i, list) for i in input_text)
         
@@ -28,8 +29,16 @@ class GenerateModel(nn.Module):
         self.dtype = clip_model.dtype
         self.image_encoder = clip_model.visual
 
-        # For EAA
-        self.face_adapter = Adapter(c_in=512, reduction=4)
+        # For EAA — face_only_mode gets more capacity (reduction=2)
+        face_reduction = 2 if self.face_only_mode else 4
+        self.face_adapter = Adapter(c_in=512, reduction=face_reduction)
+        
+        # Face Attention Gate: learnable weight for face vs body fusion
+        # Initialized at 0.7 to prioritize face features (DAiSEE = webcam face only)
+        if self.face_only_mode:
+            self.face_gate = nn.Parameter(torch.tensor(0.7))
+            self.body_adapter = Adapter(c_in=512, reduction=4)  # Body also gets adapter in face mode
+            print(f"=> Face-Only Mode: gate init=0.7, face_adapter reduction={face_reduction}")
 
         # For MI Loss
         if args.dataset == "RAER":
@@ -97,6 +106,8 @@ class GenerateModel(nn.Module):
             self.temporal_net_m = copy.deepcopy(self.temporal_net)
             self.temporal_net_body_m = copy.deepcopy(self.temporal_net_body)
             self.project_fc_m = copy.deepcopy(self.project_fc)
+            if self.face_only_mode:
+                self.body_adapter_m = copy.deepcopy(self.body_adapter)
 
             # Freeze momentum encoders
             for param in self.image_encoder_m.parameters(): param.requires_grad = False
@@ -104,6 +115,8 @@ class GenerateModel(nn.Module):
             for param in self.temporal_net_m.parameters(): param.requires_grad = False
             for param in self.temporal_net_body_m.parameters(): param.requires_grad = False
             for param in self.project_fc_m.parameters(): param.requires_grad = False
+            if self.face_only_mode:
+                for param in self.body_adapter_m.parameters(): param.requires_grad = False
 
             # Create queue
             self.register_buffer("queue", torch.randn(self.moco_dim, self.moco_k))
@@ -125,6 +138,9 @@ class GenerateModel(nn.Module):
             param_k.data = param_k.data * self.moco_m + param_q.data * (1. - self.moco_m)
         for param_q, param_k in zip(self.project_fc.parameters(), self.project_fc_m.parameters()):
             param_k.data = param_k.data * self.moco_m + param_q.data * (1. - self.moco_m)
+        if self.face_only_mode and hasattr(self, 'body_adapter_m'):
+            for param_q, param_k in zip(self.body_adapter.parameters(), self.body_adapter_m.parameters()):
+                param_k.data = param_k.data * self.moco_m + param_q.data * (1. - self.moco_m)
 
     @torch.no_grad()
     def _dequeue_and_enqueue(self, keys):
@@ -158,11 +174,19 @@ class GenerateModel(nn.Module):
         n, t, c, h, w = image_body.shape
         image_body = image_body.contiguous().view(-1, c, h, w)
         image_body_features = self.image_encoder_m(image_body.type(self.dtype))
+        if self.face_only_mode and hasattr(self, 'body_adapter_m'):
+            image_body_features = self.body_adapter_m(image_body_features)
         image_body_features = image_body_features.contiguous().view(n, t, -1)
         video_body_features = self.temporal_net_body_m(image_body_features)
 
-        # Concatenate and Project
-        video_features = torch.cat((video_face_features, video_body_features), dim=-1)
+        # Fuse with gate
+        if self.face_only_mode:
+            gate = torch.sigmoid(self.face_gate)
+            video_features = torch.cat(
+                (gate * video_face_features, (1 - gate) * video_body_features), dim=-1
+            )
+        else:
+            video_features = torch.cat((video_face_features, video_body_features), dim=-1)
         video_features = self.project_fc_m(video_features)
         video_features = video_features / video_features.norm(dim=-1, keepdim=True)
         return video_features
@@ -181,11 +205,23 @@ class GenerateModel(nn.Module):
         n, t, c, h, w = image_body.shape
         image_body_reshaped = image_body.contiguous().view(-1, c, h, w)
         image_body_features = self.image_encoder(image_body_reshaped.type(self.dtype))
+        # Apply body adapter in face_only_mode for richer features
+        if self.face_only_mode:
+            image_body_features = self.body_adapter(image_body_features)
         image_body_features = image_body_features.contiguous().view(n, t, -1)
         video_body_features = self.temporal_net_body(image_body_features)
 
-        # Concatenate the two parts
-        video_features = torch.cat((video_face_features, video_body_features), dim=-1)
+        # Fuse face and body features
+        if self.face_only_mode:
+            # Face Attention Gate: weighted fusion (gate ≈ 0.7 face, 0.3 body)
+            gate = torch.sigmoid(self.face_gate)  # clamp to [0,1]
+            # Pad both to 1024 for project_fc compatibility  
+            video_features = torch.cat(
+                (gate * video_face_features, (1 - gate) * video_body_features), dim=-1
+            )
+        else:
+            # Original concatenation
+            video_features = torch.cat((video_face_features, video_body_features), dim=-1)
         video_features = self.project_fc(video_features)
         # Robust normalization to avoid NaN on MPS
         video_features = video_features / (video_features.norm(dim=-1, keepdim=True) + 1e-6)
