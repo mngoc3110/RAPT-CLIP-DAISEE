@@ -110,6 +110,7 @@ python3 main.py \
   --full-train-merge \
   --use-face-detection \
   --use-classifier-head \
+  --no-tta \
   --temporal-dropout 0.15 \
   --augment-strength strong
 
