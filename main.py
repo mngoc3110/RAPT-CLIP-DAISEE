@@ -126,6 +126,7 @@ model_group.add_argument('--class-token-position', type=str, default="end", help
 model_group.add_argument('--class-specific-contexts', type=str, default='True', choices=['True', 'False'], help='Whether to use class-specific context prompts.')
 model_group.add_argument('--load_and_tune_prompt_learner', type=str, default='True', choices=['True', 'False'], help='Whether to load and fine-tune the prompt learner.')
 model_group.add_argument('--num-segments', type=int, default=16, help='Number of segments to sample from each video.')
+model_group.add_argument('--frames-per-clip', type=int, default=10, help='Number of frames to extract per clip for frame-level datasets.')
 model_group.add_argument('--duration', type=int, default=1, help='Duration of each segment.')
 model_group.add_argument('--image-size', type=int, default=224, help='Size to resize input images to.')
 model_group.add_argument('--temperature', type=float, default=0.07, help='Temperature for the classification layer.')

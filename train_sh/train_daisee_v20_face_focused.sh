@@ -64,11 +64,11 @@ fi
 
 python3 main.py \
   --mode train \
-  --exper-name DAiSEE_4level_v20_face_focused \
-  --dataset DAiSEE4Level \
+  --exper-name DAiSEE_4level_v20_frame_level \
+  --dataset DAiSEE4LevelFrame \
   --gpu 0 \
   --epochs 50 \
-  --batch-size 16 \
+  --batch-size 32 \
   --workers 2 \
   --optimizer AdamW \
   --lr 2e-5 \
@@ -80,7 +80,8 @@ python3 main.py \
   --scheduler cosine \
   --warmup-epochs 3 \
   --temporal-layers 2 \
-  --num-segments 8 \
+  --num-segments 1 \
+  --frames-per-clip 10 \
   --duration 1 \
   --image-size 224 \
   --seed 42 \
@@ -99,7 +100,7 @@ python3 main.py \
   --lambda_mi 0.0 \
   --lambda_dc 0.0 \
   --mixup-alpha 0.0 \
-  --max-samples-per-class 600 \
+  --max-samples-per-class 2000 \
   --use-weighted-sampler \
   --use-amp \
   --use-ema \

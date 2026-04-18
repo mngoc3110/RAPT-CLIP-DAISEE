@@ -335,6 +335,82 @@ def build_dataloaders(args: argparse.Namespace) -> Tuple[torch.utils.data.DataLo
         )
         print(f"Total number of training samples: {len(train_data)}")
         return train_loader, val_loader, test_loader
+
+    elif args.dataset.strip() == "DAiSEE4LevelFrame":
+        print(f"=> Using DAiSEE 4-Level FRAME-LEVEL dataloader (like CAER-S)...")
+        from dataloader.daisee_frame_dataloader import DAiSEEFrameDataset
+        
+        max_samples = getattr(args, 'max_samples_per_class', 0)
+        face_only = getattr(args, 'face_only_mode', False)
+        full_merge = getattr(args, 'full_train_merge', False)
+        frames_per_clip = getattr(args, 'frames_per_clip', 10)
+        
+        if full_merge:
+            ann_dir = os.path.dirname(train_annotation_file_path)
+            val_csv_for_merge = os.path.join(ann_dir, 'ValidationLabels.csv')
+            extra_train_files = [val_csv_for_merge]
+            print(f"=> [FULL MERGE] Adding Val to Train: {val_csv_for_merge}")
+        else:
+            extra_train_files = []
+        
+        train_data = DAiSEEFrameDataset(
+            root_dir=args.root_dir,
+            annotation_file=train_annotation_file_path,
+            mode='train',
+            image_size=args.image_size,
+            frames_per_clip=frames_per_clip,
+            max_samples_per_class=max_samples,
+            merge_3class=False,
+            face_only_mode=face_only,
+            extra_annotation_files=extra_train_files
+        )
+        
+        val_ann = test_annotation_file_path if full_merge else val_annotation_file_path
+        val_data = DAiSEEFrameDataset(
+            root_dir=args.root_dir,
+            annotation_file=val_ann,
+            mode='val',
+            image_size=args.image_size,
+            frames_per_clip=frames_per_clip,
+            merge_3class=False,
+            face_only_mode=face_only
+        )
+        test_data = DAiSEEFrameDataset(
+            root_dir=args.root_dir,
+            annotation_file=test_annotation_file_path,
+            mode='test',
+            image_size=args.image_size,
+            frames_per_clip=frames_per_clip,
+            merge_3class=False,
+            face_only_mode=face_only
+        )
+        
+        sampler = None
+        shuffle = True
+        if args.use_weighted_sampler:
+            print("=> Using WeightedRandomSampler for DAiSEE4LevelFrame.")
+            targets = [s[3] for s in train_data.samples]
+            class_counts = torch.tensor([targets.count(i) for i in range(num_classes)])
+            class_counts = torch.where(class_counts == 0, torch.ones_like(class_counts), class_counts)
+            class_weights = 1. / class_counts.float()
+            sample_weights = [class_weights[t] for t in targets]
+            sampler = torch.utils.data.WeightedRandomSampler(sample_weights, len(sample_weights))
+            shuffle = False
+
+        train_loader = torch.utils.data.DataLoader(
+            train_data, batch_size=args.batch_size, shuffle=shuffle, sampler=sampler,
+            num_workers=args.workers, pin_memory=True, drop_last=True
+        )
+        val_loader = torch.utils.data.DataLoader(
+            val_data, batch_size=args.batch_size, shuffle=False,
+            num_workers=args.workers, pin_memory=True
+        )
+        test_loader = torch.utils.data.DataLoader(
+            test_data, batch_size=args.batch_size, shuffle=False,
+            num_workers=args.workers, pin_memory=True
+        )
+        print(f"Total number of training samples: {len(train_data)}")
+        return train_loader, val_loader, test_loader
         
     elif args.dataset.strip() == "DAiSEE4LevelV2":
         print(f"=> Using DAiSEE 4-Level V2 Engagement dataloader (Prompt v2, sqrt-freq sampler)...")
