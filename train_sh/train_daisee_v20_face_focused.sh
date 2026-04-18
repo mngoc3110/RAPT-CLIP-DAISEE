@@ -93,16 +93,10 @@ python3 main.py \
   --class-specific-contexts True \
   --load_and_tune_prompt_learner True \
   --temperature 0.1 \
-  --loss-type ldam \
-  --ldam-max-m 0.3 \
-  --ldam-s 1.0 \
-  --label-smoothing 0.1 \
-  --lambda_mi 0.1 \
-  --lambda_dc 0.1 \
-  --mi-warmup 5 \
-  --mi-ramp 10 \
-  --dc-warmup 5 \
-  --dc-ramp 10 \
+  --loss-type ordinal_ce \
+  --ordinal-sigma 1.0 \
+  --lambda_mi 0.0 \
+  --lambda_dc 0.0 \
   --mixup-alpha 0.0 \
   --max-samples-per-class 600 \
   --use-weighted-sampler \
@@ -115,6 +109,7 @@ python3 main.py \
   --face-only-mode \
   --full-train-merge \
   --use-face-detection \
+  --use-classifier-head \
   --temporal-dropout 0.15 \
   --augment-strength strong
 

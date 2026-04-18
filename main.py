@@ -97,6 +97,7 @@ optim_group.add_argument('--no-tta', action='store_true', help='Disable TTA vali
 loss_group = parser.add_argument_group('Loss & Imbalance Handling', 'Parameters for loss functions and imbalance handling')
 loss_group.add_argument('--loss-type', type=str, default='ce', choices=['ce', 'ldl', 'ldam', 'focal', 'ordinal_ce', 'coral', 'evr'], help='Type of primary classification loss.')
 loss_group.add_argument('--focal-gamma', type=float, default=2.0, help='Gamma for focal loss.')
+loss_group.add_argument('--ordinal-sigma', type=float, default=1.0, help='Sigma for OrdinalCELoss Gaussian soft labels (lower=sharper).')
 loss_group.add_argument('--lambda_mi', type=float, default=0.1, help='Weight for the Mutual Information loss.')
 loss_group.add_argument('--lambda_dc', type=float, default=0.1, help='Weight for the Decorrelation loss.')
 loss_group.add_argument('--mi-warmup', type=int, default=5, help='Warmup epochs for MI loss.')
@@ -292,6 +293,7 @@ def run_training(args: argparse.Namespace) -> None:
     elif args.loss_type == 'ordinal_ce':
         from utils.loss import OrdinalCELoss
         num_classes = len(cls_num_list) if cls_num_list else 3
+        ordinal_sigma = getattr(args, 'ordinal_sigma', 1.0)
         
         # Calculate class weights: boost minority WITHOUT suppressing majority
         cls_weights = None
@@ -301,8 +303,8 @@ def run_training(args: argparse.Namespace) -> None:
             cls_weights = torch.FloatTensor([min(5.0, max(1.0, max_count / (c + 1e-6))) for c in cls_num_list])
             print(f"=> Computed OrdinalCELoss Class Weights: [{', '.join([f'{w:.3f}' for w in cls_weights.tolist()])}]")
             
-        print(f"=> Using Ordinal CE Loss (sigma=0.5, {num_classes} classes)")
-        criterion = OrdinalCELoss(num_classes=num_classes, sigma=0.5, weight=cls_weights).to(args.device)
+        print(f"=> Using Ordinal CE Loss (sigma={ordinal_sigma}, {num_classes} classes)")
+        criterion = OrdinalCELoss(num_classes=num_classes, sigma=ordinal_sigma, weight=cls_weights).to(args.device)
     elif args.loss_type == 'coral':
         from utils.loss import CORALLoss
         num_classes = len(cls_num_list) if cls_num_list else 3

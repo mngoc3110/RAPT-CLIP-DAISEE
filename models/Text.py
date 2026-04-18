@@ -400,48 +400,48 @@ class_names_with_context_daisee_4level = [
 ]
 
 class_descriptor_daisee_4level = [
-    "A student's face is completely disengaged: eyes fully closed or nearly shut, head drooping down, jaw slack, facial muscles relaxed as if asleep in front of the webcam.",
-    "A student's face shows low engagement: half-open glazed eyes, frequent blinking, gaze drifting sideways, yawning with mouth wide open, droopy eyelids, and an unfocused bored expression.",
-    "A student's face is attentive: eyes open and steadily focused on the screen, relaxed brow, neutral calm mouth, and consistent forward gaze showing quiet sustained concentration.",
-    "A student's face is highly engaged: eyes wide open with raised inner eyebrows, bright animated expression, slight forward lean, occasional nodding, and visible curiosity or a slight smile."
+    "A student's face captured by webcam showing very low engagement: looking away from the screen, resting head on hand, minimal facial movement, eyes half-closed or unfocused.",
+    "A student's face captured by webcam showing low engagement: neutral passive expression, occasionally glancing at the screen, slow eye movements, chin resting on palm.",
+    "A student's face captured by webcam showing high engagement: looking steadily at the screen, relaxed but attentive expression, consistent eye contact with the content.",
+    "A student's face captured by webcam showing very high engagement: eyes actively tracking screen content, slight eyebrow raises, responsive facial expressions, alert and focused posture."
 ]
 
 prompt_ensemble_daisee_4level = [
-    [ # Very Low Engagement (0) — AU43(eyes closed), AU54(head down), sleeping
-        "A close-up of a student's face with both eyes completely shut and eyelids heavy, head tilting downward, clearly asleep during an online class.",
-        "A webcam view of a face with sealed eyelids and slack jaw, mouth slightly open, the student is unconscious and not responding to the lesson.",
-        "A student's face with head resting on one hand, eyes fully closed, facial muscles completely relaxed showing deep sleep.",
-        "A close-up showing a motionless face with closed eyes and drooping head, no sign of awareness or responsiveness to the screen.",
-        "A face captured by webcam with eyes shut tight, chin dropping toward chest, the student has fallen asleep during the online lecture.",
-        "A student's face tilted sideways with closed eyelids and a limp expression, completely unaware of the lesson being taught.",
-        "A webcam image of a face with no visible eye opening, head slumped forward, the student is in a state of sleep during class."
+    [ # Very Low Engagement (0) — minimal interaction, looking away, drowsy
+        "A webcam photo of a student looking away from the computer screen with a blank distant expression, showing no interest in the online lesson.",
+        "A student's face captured by webcam with eyes half-closed and head tilted to one side, appearing drowsy and disconnected from the class.",
+        "A webcam image of a student resting their head on their hand, gazing downward at the desk instead of the screen, not paying attention.",
+        "A student photographed through webcam with an empty unfocused stare, face turned slightly away from the monitor, completely disengaged.",
+        "A webcam capture of a student with droopy heavy eyelids and slack facial expression, head propped up by hand, struggling to stay awake during class.",
+        "A student's face on webcam showing no response to lesson content, eyes wandering around the room, jaw relaxed, facial muscles inactive.",
+        "A webcam photo of a student who appears mentally absent, gaze directed away from screen, motionless face with no sign of following the lecture."
     ],
-    [ # Low Engagement (1) — AU45(blink), AU51/52(head turn), AU28(yawn), distracted
-        "A close-up of a student's face with half-open glazed eyes and a blank unfocused expression, staring past the screen without seeing.",
-        "A webcam view of a student whose eyes are drifting to the side, head slightly turned away, not maintaining eye contact with the screen.",
-        "A face showing a wide yawn with mouth open and watery eyes, the student is tired and losing interest in the online lesson.",
-        "A student's face with heavy drooping eyelids blinking slowly, a bored listless expression with no emotional response to content.",
-        "A close-up of a distracted face looking downward at something off-screen, eyebrows flat, showing minimal attention to the lesson.",
-        "A webcam image of a student with wandering gaze and slack facial features, chin resting on palm, mentally checked out of the class.",
-        "A face with unfocused eyes staring blankly, occasional slow blinks, and a disinterested flat expression during the online lecture."
+    [ # Low Engagement (1) — passive, occasional attention, minimal response
+        "A webcam photo of a student with a passive neutral expression, looking at the screen intermittently but without real focus or interest.",
+        "A student's face captured by webcam showing occasional glances at the screen between periods of looking elsewhere, mild boredom visible.",
+        "A webcam image of a student with a flat expressionless face, eyes open but glazed, mechanically facing the screen without active processing.",
+        "A student photographed through webcam leaning back in their chair with a tired look, making minimal effort to follow the online lesson.",
+        "A webcam capture of a student whose gaze drifts slowly between the screen and other objects, showing sporadic low-effort attention.",
+        "A student's face on webcam with slightly furrowed brow and unfocused eyes, appearing distracted and only partially aware of the lesson.",
+        "A webcam photo of a student maintaining loose face-forward posture but with vacant eyes and no emotional response to the content being taught."
     ],
-    [ # High Engagement (2) — AU5(lid raiser moderate), steady gaze, calm attentive
-        "A close-up of a student's face with open eyes looking directly at the screen, relaxed brow and calm expression showing steady concentration.",
-        "A webcam view of an attentive face with clear focused eyes maintaining consistent eye contact with the camera, mouth relaxed and neutral.",
-        "A student's face showing quiet engagement with slightly raised upper eyelids, steady forward gaze, and a composed thoughtful expression.",
-        "A face with eyes fixed on the screen content, smooth forehead, relaxed jaw, and a still attentive posture captured through webcam.",
-        "A close-up of a student maintaining steady eye contact, eyebrows in natural position, showing calm focused absorption in the lesson.",
-        "A webcam image of a face with gentle focused eyes, no fidgeting or looking away, the student is quietly following the lecture content.",
-        "A student's face with open alert eyes and a serene concentrated expression, watching the online lesson with sustained undivided attention."
+    [ # High Engagement (2) — steady attention, calm focus, consistent gaze
+        "A webcam photo of a student looking directly at the screen with a calm focused expression, eyes steadily following the lesson content.",
+        "A student's face captured by webcam showing quiet attentiveness, relaxed brow, eyes open and consistently directed at the monitor.",
+        "A webcam image of a student with a composed concentrated expression, maintaining natural eye contact with the screen throughout the lesson.",
+        "A student photographed through webcam sitting upright with a relaxed but alert face, steadily watching the online lecture with sustained attention.",
+        "A webcam capture of a student whose eyes are fixed on the screen content, face showing calm engagement with occasional natural blinking.",
+        "A student's face on webcam with a thoughtful neutral expression, gaze locked onto the lesson material, demonstrating steady quiet focus.",
+        "A webcam photo of a student attentively watching the screen with relaxed facial muscles, showing comfortable sustained concentration on the class."
     ],
-    [ # Very High Engagement (3) — AU1+2(brow raise), AU5+6(wide eyes), AU12(smile)
-        "A close-up of a student's face with wide open eyes and raised eyebrows, showing intense curiosity and active intellectual engagement with the lesson.",
-        "A webcam view of an animated face with bright widened eyes and a slight eager smile, the student is deeply fascinated by the content.",
-        "A student's face leaning slightly toward the screen with furrowed concentrated brows and intensely focused eyes, deeply processing the material.",
-        "A face showing visible excitement with eyebrows lifted high, eyes sparkling with interest, and a subtle smile of understanding or discovery.",
-        "A close-up of a student with expressive widened eyes and an open engaged expression, reacting with enthusiasm to the online lesson content.",
-        "A webcam image of a face showing a mix of concentration and delight, inner eyebrows raised, eyes bright and tracking content actively.",
-        "A student's face with animated features including raised brows, wide attentive eyes, and occasional nodding, showing peak engagement and fascination."
+    [ # Very High Engagement (3) — active attention, responsive expressions, dynamic gaze
+        "A webcam photo of a student with an alert animated expression, eyes actively tracking content on screen, eyebrows slightly raised with interest.",
+        "A student's face captured by webcam showing visible curiosity, leaning slightly forward, eyes wide and bright while following the lesson intently.",
+        "A webcam image of a student with responsive facial expressions, slight head movements following the content, showing active intellectual engagement.",
+        "A student photographed through webcam with raised eyebrows and focused wide eyes, face showing genuine interest and understanding of the material.",
+        "A webcam capture of a student whose expression changes in response to lesson content, with occasional subtle nods and an engaged attentive look.",
+        "A student's face on webcam displaying active processing of information, eyes moving across the screen, eyebrows occasionally lifting with recognition.",
+        "A webcam photo of a student showing peak attention with bright alert eyes, slight forward posture, and micro-expressions reflecting deep engagement with the lecture."
     ]
 ]
 
