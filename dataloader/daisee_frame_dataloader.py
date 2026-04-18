@@ -196,30 +196,47 @@ class DAiSEEFrameDataset(data.Dataset):
                 # ('video', video_path, frame_idx, label)
                 samples.append(s)
         
-        # Undersample majority + Oversample minority (training only)
+        # Fully EQUALIZE all classes (training only)
         if self.mode == 'train' and self.max_samples_per_class > 0:
             from collections import defaultdict
             per_class = defaultdict(list)
             for s in samples:
                 per_class[s[3]].append(s)
             
-            min_samples = max(self.max_samples_per_class // 3, 500)
+            target = self.max_samples_per_class
+            
+            # Print BEFORE balancing
+            print(f"\n{'='*60}")
+            print(f"  CLASS DISTRIBUTION BEFORE BALANCING:")
+            for cls_idx in sorted(per_class.keys()):
+                count = len(per_class[cls_idx])
+                print(f"    Class {cls_idx}: {count:>6} frames")
+            print(f"    Total:  {sum(len(v) for v in per_class.values()):>6} frames")
+            print(f"{'='*60}")
             
             samples = []
             for cls_idx in sorted(per_class.keys()):
                 cls_samples = per_class[cls_idx]
-                if len(cls_samples) > self.max_samples_per_class:
+                if len(cls_samples) > target:
+                    # Undersample: cap to target
                     random.shuffle(cls_samples)
-                    cls_samples = cls_samples[:self.max_samples_per_class]
-                elif len(cls_samples) < min_samples:
+                    cls_samples = cls_samples[:target]
+                elif len(cls_samples) < target:
+                    # Oversample: duplicate to reach target
                     original = cls_samples.copy()
-                    while len(cls_samples) < min_samples:
+                    while len(cls_samples) < target:
                         cls_samples.append(random.choice(original))
-                    print(f"  Oversampled class {cls_idx}: {len(original)} → {len(cls_samples)}")
+                    print(f"  Oversampled class {cls_idx}: {len(original)} → {target}")
                 samples.extend(cls_samples)
             random.shuffle(samples)
-            class_counts = {i: sum(1 for s in samples if s[3] == i) for i in sorted(per_class.keys())}
-            print(f"DAiSEE Frame ({self.mode}): After rebalancing → {class_counts}")
+            
+            # Print AFTER balancing
+            print(f"\n  CLASS DISTRIBUTION AFTER BALANCING (target={target}/class):")
+            for cls_idx in sorted(per_class.keys()):
+                count = sum(1 for s in samples if s[3] == cls_idx)
+                print(f"    Class {cls_idx}: {count:>6} frames ({'BALANCED' if count == target else 'ADJUSTED'})")
+            print(f"    Total:  {len(samples):>6} frames")
+            print(f"{'='*60}\n")
         
         # Print stats
         from collections import Counter

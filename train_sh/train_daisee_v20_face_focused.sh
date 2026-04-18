@@ -68,7 +68,7 @@ python3 main.py \
   --dataset DAiSEE4LevelFrame \
   --gpu 0 \
   --epochs 50 \
-  --batch-size 32 \
+  --batch-size 64 \
   --workers 2 \
   --optimizer AdamW \
   --lr 2e-5 \

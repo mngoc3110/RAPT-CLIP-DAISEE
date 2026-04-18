@@ -291,14 +291,19 @@ class Trainer:
                             cm = confusion_matrix(curr_targets, curr_preds, labels=range(output.shape[1]))
                             class_acc = cm.diagonal() / (cm.sum(axis=1) + 1e-6)
                             running_uar = np.nanmean(class_acc) * 100
+                            # Per-class accuracy string
+                            per_class_str = ' '.join([f'C{j}:{a:.0f}%' for j, a in enumerate(class_acc * 100)])
                         except:
-                            pass
+                            per_class_str = ''
                 
-                pbar.set_postfix({
+                postfix = {
                     'Loss': f"{losses.avg:.4f}",
                     'WAR': f"{war_meter.avg:.2f}%",
-                    'UAR': f"{running_uar:.2f}%"
-                })
+                    'UAR': f"{running_uar:.2f}%",
+                }
+                if per_class_str:
+                    postfix['Acc'] = per_class_str
+                pbar.set_postfix(postfix)
         
         # Calculate epoch-level metrics
         all_preds = torch.cat(all_preds_list)
