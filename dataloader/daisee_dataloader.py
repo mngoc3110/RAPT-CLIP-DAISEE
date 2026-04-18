@@ -1,6 +1,5 @@
 import os
 import cv2
-import cv2
 import pandas as pd
 import torch
 import random
@@ -20,7 +19,7 @@ CLIP_MEAN = [0.48145466, 0.4578275, 0.40821073]
 CLIP_STD = [0.26862954, 0.26130258, 0.27577711]
 
 class DAiSEEDataset(data.Dataset):
-    def __init__(self, root_dir, annotation_file, mode='train', num_segments=16, duration=1, image_size=224, max_samples_per_class=0, extra_annotation_files=None, merge_3class=False):
+    def __init__(self, root_dir, annotation_file, mode='train', num_segments=16, duration=1, image_size=224, max_samples_per_class=0, extra_annotation_files=None, merge_3class=False, face_only_mode=False):
         self.root_dir = root_dir
         self.annotation_file = annotation_file
         self.mode = mode
@@ -32,6 +31,7 @@ class DAiSEEDataset(data.Dataset):
         self.max_samples_per_class = max_samples_per_class  # 0 = no cap
         self.extra_annotation_files = extra_annotation_files or []  # list of extra CSVs to merge
         self.merge_3class = merge_3class
+        self.face_only_mode = face_only_mode  # True = body stream uses wider face crop
         
         self.samples = self._make_dataset()
         
@@ -134,7 +134,12 @@ class DAiSEEDataset(data.Dataset):
         return offsets
 
     def _detect_and_crop_face(self, img_pil, fallback_ratio=0.6):
-        """Uses OpenCV Haar Cascade to find the face. Fallback to center crop if no face."""
+        """Uses OpenCV Haar Cascade to find the face. Fallback to center crop if no face.
+        
+        Args:
+            img_pil: PIL Image
+            fallback_ratio: crop ratio for center crop fallback
+        """
         w, h = img_pil.size
         
         # Convert PIL to CV2 Grayscale
@@ -149,8 +154,9 @@ class DAiSEEDataset(data.Dataset):
             largest_face = max(faces, key=lambda rect: rect[2] * rect[3])
             x, y, fw, fh = largest_face
             
-            # Add 20% margin to bounding box
-            margin_w, margin_h = int(fw * 0.2), int(fh * 0.2)
+            # Add margin based on fallback_ratio (tighter ratio = less margin)
+            margin_factor = 0.2 if fallback_ratio <= 0.6 else 0.4
+            margin_w, margin_h = int(fw * margin_factor), int(fh * margin_factor)
             left = max(0, x - margin_w)
             top = max(0, y - margin_h)
             right = min(w, x + fw + margin_w)
@@ -196,9 +202,15 @@ class DAiSEEDataset(data.Dataset):
                 if ret and frame is not None:
                     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                     img_pil = Image.fromarray(frame_rgb)
-                    cropped_face = self._detect_and_crop_face(img_pil, 0.6)
-                    face_images.append(cropped_face)  # Same-Crop Strategy
-                    body_images.append(cropped_face)  
+                    # Face branch: tight crop (0.5)
+                    cropped_face = self._detect_and_crop_face(img_pil, 0.5)
+                    face_images.append(cropped_face)
+                    # Body branch: wider crop (0.75) in face_only_mode, else same as face
+                    if self.face_only_mode:
+                        cropped_body = self._detect_and_crop_face(img_pil, 0.75)
+                        body_images.append(cropped_body)
+                    else:
+                        body_images.append(cropped_face)
                 else:
                     blank = Image.new('RGB', (self.image_size, self.image_size))
                     face_images.append(blank)
@@ -263,9 +275,15 @@ class DAiSEEDataset(data.Dataset):
                 for _ in range(self.duration):
                     try:
                         img_pil = Image.open(os.path.join(frames_path, frame_files[p])).convert('RGB')
-                        cropped_face = self._detect_and_crop_face(img_pil, 0.6)
-                        face_images.append(cropped_face)  # Same-Crop Strategy
-                        body_images.append(cropped_face)  
+                        # Face branch: tight crop (0.5)
+                        cropped_face = self._detect_and_crop_face(img_pil, 0.5)
+                        face_images.append(cropped_face)
+                        # Body branch: wider crop (0.75) in face_only_mode, else same as face
+                        if self.face_only_mode:
+                            cropped_body = self._detect_and_crop_face(img_pil, 0.75)
+                            body_images.append(cropped_body)
+                        else:
+                            body_images.append(cropped_face)
                     except:
                         blank = Image.new('RGB', (self.image_size, self.image_size))
                         face_images.append(blank)

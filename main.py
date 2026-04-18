@@ -336,6 +336,11 @@ def run_training(args: argparse.Namespace) -> None:
         optimizer_grouped_parameters.append({"params": [model.alpha_gaze], "lr": args.lr_adapter})
     if hasattr(model, 'classifier_head'):
         optimizer_grouped_parameters.append({"params": model.classifier_head.parameters(), "lr": args.lr})
+    # Face-only mode: add body_adapter and face_gate to optimizer
+    if hasattr(model, 'body_adapter'):
+        optimizer_grouped_parameters.append({"params": model.body_adapter.parameters(), "lr": args.lr_adapter})
+    if hasattr(model, 'face_gate'):
+        optimizer_grouped_parameters.append({"params": [model.face_gate], "lr": args.lr})
 
     if args.optimizer == 'SGD':
         optimizer = torch.optim.SGD(optimizer_grouped_parameters, momentum=args.momentum, weight_decay=args.weight_decay)

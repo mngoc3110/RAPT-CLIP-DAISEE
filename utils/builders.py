@@ -42,7 +42,7 @@ def build_model(args: argparse.Namespace, input_text: list) -> torch.nn.Module:
 
     trainable_params_keywords = [
         "temporal_net", "prompt_learner", "temporal_net_body", "project_fc", "face_adapter",
-        "classifier_head", "gaze_mlp", "alpha_gaze"
+        "classifier_head", "gaze_mlp", "alpha_gaze", "body_adapter", "face_gate"
     ]
     
     print('\nTrainable parameters:')
@@ -258,6 +258,7 @@ def build_dataloaders(args: argparse.Namespace) -> Tuple[torch.utils.data.DataLo
         from dataloader.daisee_dataloader import DAiSEEDataset
         
         max_samples = getattr(args, 'max_samples_per_class', 0)
+        face_only = getattr(args, 'face_only_mode', False)
         train_data = DAiSEEDataset(
             root_dir=args.root_dir,
             annotation_file=train_annotation_file_path,
@@ -266,7 +267,8 @@ def build_dataloaders(args: argparse.Namespace) -> Tuple[torch.utils.data.DataLo
             duration=args.duration,
             image_size=args.image_size,
             max_samples_per_class=max_samples,
-            merge_3class=False
+            merge_3class=False,
+            face_only_mode=face_only
         )
         val_data = DAiSEEDataset(
             root_dir=args.root_dir,
@@ -275,7 +277,8 @@ def build_dataloaders(args: argparse.Namespace) -> Tuple[torch.utils.data.DataLo
             num_segments=args.num_segments,
             duration=args.duration,
             image_size=args.image_size,
-            merge_3class=False
+            merge_3class=False,
+            face_only_mode=face_only
         )
         test_data = DAiSEEDataset(
             root_dir=args.root_dir,
@@ -284,7 +287,8 @@ def build_dataloaders(args: argparse.Namespace) -> Tuple[torch.utils.data.DataLo
             num_segments=args.num_segments,
             duration=args.duration,
             image_size=args.image_size,
-            merge_3class=False
+            merge_3class=False,
+            face_only_mode=face_only
         )
         
         sampler = None

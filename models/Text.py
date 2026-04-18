@@ -407,41 +407,41 @@ class_descriptor_daisee_4level = [
 ]
 
 prompt_ensemble_daisee_4level = [
-    [ # Very Low Engagement (0)
-        "A student showing very low engagement, face with eyes completely closed, head tilted down, asleep.",
-        "A student showing very low engagement, eyes shut and mouth slightly open, clearly sleeping.",
-        "A student showing very low engagement, head resting on hand, completely unconscious.",
-        "A student showing very low engagement, heavy closed eyelids and no sign of awareness.",
-        "A student showing very low engagement, appearing to be in deep sleep, face motionless.",
-        "A student showing very low engagement, no sign of consciousness, jaw slack.",
-        "A student showing very low engagement, head drooping forward, not responsive at all."
+    [ # Very Low Engagement (0) — AU43(eyes closed), AU54(head down), sleeping
+        "A close-up of a student's face with both eyes completely shut and eyelids heavy, head tilting downward, clearly asleep during an online class.",
+        "A webcam view of a face with sealed eyelids and slack jaw, mouth slightly open, the student is unconscious and not responding to the lesson.",
+        "A student's face with head resting on one hand, eyes fully closed, facial muscles completely relaxed showing deep sleep.",
+        "A close-up showing a motionless face with closed eyes and drooping head, no sign of awareness or responsiveness to the screen.",
+        "A face captured by webcam with eyes shut tight, chin dropping toward chest, the student has fallen asleep during the online lecture.",
+        "A student's face tilted sideways with closed eyelids and a limp expression, completely unaware of the lesson being taught.",
+        "A webcam image of a face with no visible eye opening, head slumped forward, the student is in a state of sleep during class."
     ],
-    [ # Low Engagement (1)
-        "A student showing low engagement, face with an unfocused bored expression, eyes glazed.",
-        "A student showing low engagement, eyes wandering around instead of looking at the screen.",
-        "A student showing low engagement, tired yawning expression with droopy eyelids.",
-        "A student showing low engagement, distracted look, eyes glancing to the side.",
-        "A student showing low engagement, no eye contact and a listless uninterested expression.",
-        "A student showing low engagement, looking away from the screen with a blank stare.",
-        "A student showing low engagement, barely paying attention to the lesson."
+    [ # Low Engagement (1) — AU45(blink), AU51/52(head turn), AU28(yawn), distracted
+        "A close-up of a student's face with half-open glazed eyes and a blank unfocused expression, staring past the screen without seeing.",
+        "A webcam view of a student whose eyes are drifting to the side, head slightly turned away, not maintaining eye contact with the screen.",
+        "A face showing a wide yawn with mouth open and watery eyes, the student is tired and losing interest in the online lesson.",
+        "A student's face with heavy drooping eyelids blinking slowly, a bored listless expression with no emotional response to content.",
+        "A close-up of a distracted face looking downward at something off-screen, eyebrows flat, showing minimal attention to the lesson.",
+        "A webcam image of a student with wandering gaze and slack facial features, chin resting on palm, mentally checked out of the class.",
+        "A face with unfocused eyes staring blankly, occasional slow blinks, and a disinterested flat expression during the online lecture."
     ],
-    [ # High Engagement (2)
-        "A student showing high engagement, looking directly at the screen with calm focused eyes.",
-        "A student showing high engagement, steady eye contact and a neutral attentive expression.",
-        "A student showing high engagement, quiet concentration with relaxed features.",
-        "A student showing high engagement, clear open eyes watching the screen attentively.",
-        "A student showing high engagement, focused neutral gaze, paying attention to the lesson.",
-        "A student showing high engagement, quietly absorbing the lecture content.",
-        "A student showing high engagement, sustained attention with gentle focused eyes."
+    [ # High Engagement (2) — AU5(lid raiser moderate), steady gaze, calm attentive
+        "A close-up of a student's face with open eyes looking directly at the screen, relaxed brow and calm expression showing steady concentration.",
+        "A webcam view of an attentive face with clear focused eyes maintaining consistent eye contact with the camera, mouth relaxed and neutral.",
+        "A student's face showing quiet engagement with slightly raised upper eyelids, steady forward gaze, and a composed thoughtful expression.",
+        "A face with eyes fixed on the screen content, smooth forehead, relaxed jaw, and a still attentive posture captured through webcam.",
+        "A close-up of a student maintaining steady eye contact, eyebrows in natural position, showing calm focused absorption in the lesson.",
+        "A webcam image of a face with gentle focused eyes, no fidgeting or looking away, the student is quietly following the lecture content.",
+        "A student's face with open alert eyes and a serene concentrated expression, watching the online lesson with sustained undivided attention."
     ],
-    [ # Very High Engagement (3)
-        "A student showing very high engagement, wide alert eyes showing intense focus and interest.",
-        "A student showing very high engagement, raised eyebrows and bright eyes, deeply engaged.",
-        "A student showing very high engagement, animated expression of curiosity with widened eyes.",
-        "A student showing very high engagement, intensely concentrated eyes fixed on the screen.",
-        "A student showing very high engagement, excited face reacting to content with expressive eyes.",
-        "A student showing very high engagement, visible intellectual engagement with alert widened eyes.",
-        "A student showing very high engagement, eager expression, eyes sparkling with interest in the lesson material."
+    [ # Very High Engagement (3) — AU1+2(brow raise), AU5+6(wide eyes), AU12(smile)
+        "A close-up of a student's face with wide open eyes and raised eyebrows, showing intense curiosity and active intellectual engagement with the lesson.",
+        "A webcam view of an animated face with bright widened eyes and a slight eager smile, the student is deeply fascinated by the content.",
+        "A student's face leaning slightly toward the screen with furrowed concentrated brows and intensely focused eyes, deeply processing the material.",
+        "A face showing visible excitement with eyebrows lifted high, eyes sparkling with interest, and a subtle smile of understanding or discovery.",
+        "A close-up of a student with expressive widened eyes and an open engaged expression, reacting with enthusiasm to the online lesson content.",
+        "A webcam image of a face showing a mix of concentration and delight, inner eyebrows raised, eyes bright and tracking content actively.",
+        "A student's face with animated features including raised brows, wide attentive eyes, and occasional nodding, showing peak engagement and fascination."
     ]
 ]
 
