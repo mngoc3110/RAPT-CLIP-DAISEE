@@ -77,6 +77,11 @@ def get_class_info(args: argparse.Namespace) -> Tuple[list, list]:
         class_names_with_context = class_names_with_context_daisee_4level
         class_descriptor = class_descriptor_daisee_4level
         ensemble_prompts = prompt_ensemble_daisee_4level
+    elif dataset_name == "DAiSEE4LevelFrame":
+        class_names = class_names_daisee_4level
+        class_names_with_context = class_names_with_context_daisee_4level
+        class_descriptor = class_descriptor_daisee_4level
+        ensemble_prompts = prompt_ensemble_daisee_4level
     elif dataset_name == "DAiSEE4LevelV2":
         # Prompt v2: mô tả đặc trưng hình thái học cụ thể (eye state, gaze, head pos)
         class_names = class_names_daisee_4level
