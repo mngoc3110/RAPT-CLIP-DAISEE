@@ -196,7 +196,7 @@ class DAiSEEFrameDataset(data.Dataset):
                 # ('video', video_path, frame_idx, label)
                 samples.append(s)
         
-        # Fully EQUALIZE all classes (training only)
+        # Only UNDERSAMPLE majority classes (training only)
         if self.mode == 'train' and self.max_samples_per_class > 0:
             from collections import defaultdict
             per_class = defaultdict(list)
@@ -221,20 +221,16 @@ class DAiSEEFrameDataset(data.Dataset):
                     # Undersample: cap to target
                     random.shuffle(cls_samples)
                     cls_samples = cls_samples[:target]
-                elif len(cls_samples) < target:
-                    # Oversample: duplicate to reach target
-                    original = cls_samples.copy()
-                    while len(cls_samples) < target:
-                        cls_samples.append(random.choice(original))
-                    print(f"  Oversampled class {cls_idx}: {len(original)} → {target}")
+                    print(f"  Undersampled class {cls_idx}: {len(per_class[cls_idx])} → {target}")
+                # Keep minority classes AS-IS (no oversampling)
                 samples.extend(cls_samples)
             random.shuffle(samples)
             
             # Print AFTER balancing
-            print(f"\n  CLASS DISTRIBUTION AFTER BALANCING (target={target}/class):")
+            print(f"\n  CLASS DISTRIBUTION AFTER BALANCING (cap={target}):")
             for cls_idx in sorted(per_class.keys()):
                 count = sum(1 for s in samples if s[3] == cls_idx)
-                print(f"    Class {cls_idx}: {count:>6} frames ({'BALANCED' if count == target else 'ADJUSTED'})")
+                print(f"    Class {cls_idx}: {count:>6} frames")
             print(f"    Total:  {len(samples):>6} frames")
             print(f"{'='*60}\n")
         
