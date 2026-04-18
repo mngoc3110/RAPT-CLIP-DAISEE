@@ -104,7 +104,8 @@ python3 main.py \
   --dc-warmup 5 \
   --dc-ramp 10 \
   --mixup-alpha 0.1 \
-  --max-samples-per-class 1000 \
+  --max-samples-per-class 600 \
+  --use-weighted-sampler \
   --use-amp \
   --use-ema \
   --ema-decay 0.995 \

@@ -92,22 +92,34 @@ class DAiSEEDataset(data.Dataset):
                 print(f"Error reading CSV {ann_file}: {e}")
 
         samples = all_samples
-        # Undersample majority classes (training only)
+        # Undersample majority + Oversample minority (training only)
         if self.mode == 'train' and self.max_samples_per_class > 0:
             from collections import defaultdict
             per_class = defaultdict(list)
             for s in samples:
                 per_class[s[1]].append(s)
+            
+            # Step 1: Undersample majority classes
+            # Step 2: Oversample minority classes to at least min_samples
+            min_samples = max(self.max_samples_per_class // 3, 200)  # At least 1/3 of cap or 200
+            
             samples = []
             for cls_idx in sorted(per_class.keys()):
                 cls_samples = per_class[cls_idx]
                 if len(cls_samples) > self.max_samples_per_class:
+                    # Undersample: cap majority
                     random.shuffle(cls_samples)
                     cls_samples = cls_samples[:self.max_samples_per_class]
+                elif len(cls_samples) < min_samples:
+                    # Oversample: duplicate minority samples to reach min_samples
+                    original = cls_samples.copy()
+                    while len(cls_samples) < min_samples:
+                        cls_samples.append(random.choice(original))
+                    print(f"  Oversampled class {cls_idx}: {len(original)} → {len(cls_samples)}")
                 samples.extend(cls_samples)
             random.shuffle(samples)
             class_counts = {i: sum(1 for s in samples if s[1]==i) for i in sorted(per_class.keys())}
-            print(f"DAiSEE ({self.mode}): After undersampling → {class_counts}")
+            print(f"DAiSEE ({self.mode}): After rebalancing → {class_counts}")
 
         print(f"DAiSEE ({self.mode}): Loaded {len(samples)} samples.")
         return samples
