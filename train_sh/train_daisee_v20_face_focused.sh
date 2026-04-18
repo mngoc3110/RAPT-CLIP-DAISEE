@@ -92,18 +92,18 @@ python3 main.py \
   --contexts-number 8 \
   --class-specific-contexts True \
   --load_and_tune_prompt_learner True \
-  --temperature 0.05 \
+  --temperature 0.1 \
   --loss-type ldam \
   --ldam-max-m 0.3 \
   --ldam-s 1.0 \
-  --label-smoothing 0.05 \
+  --label-smoothing 0.1 \
   --lambda_mi 0.1 \
   --lambda_dc 0.1 \
   --mi-warmup 5 \
   --mi-ramp 10 \
   --dc-warmup 5 \
   --dc-ramp 10 \
-  --mixup-alpha 0.1 \
+  --mixup-alpha 0.0 \
   --max-samples-per-class 600 \
   --use-weighted-sampler \
   --use-amp \
