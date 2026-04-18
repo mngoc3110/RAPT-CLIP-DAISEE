@@ -40,7 +40,10 @@ def build_model(args: argparse.Namespace, input_text: list) -> torch.nn.Module:
             if "image_encoder" in name:
                 param.requires_grad = True
 
-    trainable_params_keywords = ["temporal_net", "prompt_learner", "temporal_net_body", "project_fc", "face_adapter", "body_adapter", "face_gate"]
+    trainable_params_keywords = [
+        "temporal_net", "prompt_learner", "temporal_net_body", "project_fc", "face_adapter",
+        "classifier_head", "gaze_mlp", "alpha_gaze"
+    ]
     
     print('\nTrainable parameters:')
     for name, param in model.named_parameters():
@@ -69,23 +72,22 @@ def get_class_info(args: argparse.Namespace) -> Tuple[list, list]:
         class_names_with_context = class_names_with_context_daisee
         class_descriptor = class_descriptor_daisee
         ensemble_prompts = prompt_ensemble_daisee
+    elif dataset_name == "DAiSEE4Level":
+        class_names = class_names_daisee_4level
+        class_names_with_context = class_names_with_context_daisee_4level
+        class_descriptor = class_descriptor_daisee_4level
+        ensemble_prompts = prompt_ensemble_daisee_4level
+    elif dataset_name == "DAiSEE4LevelV2":
+        # Prompt v2: mô tả đặc trưng hình thái học cụ thể (eye state, gaze, head pos)
+        class_names = class_names_daisee_4level
+        class_names_with_context = class_names_with_context_daisee_4level
+        class_descriptor = class_descriptor_daisee_4level
+        ensemble_prompts = prompt_ensemble_daisee_4level_v2
     elif dataset_name == "DAiSEE4Discrete":
         class_names = class_names_daisee4
         class_names_with_context = class_names_with_context_daisee4
         class_descriptor = class_descriptor_daisee4
         ensemble_prompts = prompt_ensemble_daisee4
-    elif dataset_name == "DAiSEE4Level":
-        from models.Text import class_names_daisee_4level, class_names_with_context_daisee_4level, class_descriptor_daisee_4level, prompt_ensemble_daisee_4level
-        class_names = class_names_daisee_4level
-        class_names_with_context = class_names_with_context_daisee_4level
-        class_descriptor = class_descriptor_daisee_4level
-        ensemble_prompts = prompt_ensemble_daisee_4level
-    elif dataset_name == "DAiSEEBinary":
-        from models.Text import class_names_daisee_binary, class_names_with_context_daisee_binary, class_descriptor_daisee_binary, prompt_ensemble_daisee_binary
-        class_names = class_names_daisee_binary
-        class_names_with_context = class_names_with_context_daisee_binary
-        class_descriptor = class_descriptor_daisee_binary
-        ensemble_prompts = prompt_ensemble_daisee_binary
     elif dataset_name == "StudentEngagement":
         class_names = class_names_student_engagement
         class_names_with_context = class_names_with_context_student_engagement
@@ -190,9 +192,6 @@ def build_dataloaders(args: argparse.Namespace) -> Tuple[torch.utils.data.DataLo
         from dataloader.daisee_dataloader import DAiSEEDataset
         
         max_samples = getattr(args, 'max_samples_per_class', 0)
-        use_face_det = getattr(args, 'use_face_detection', False)
-        temp_dropout = getattr(args, 'temporal_dropout', 0.0)
-        aug_strength = getattr(args, 'augment_strength', 'mild')
         train_data = DAiSEEDataset(
             root_dir=args.root_dir,
             annotation_file=train_annotation_file_path,
@@ -201,9 +200,7 @@ def build_dataloaders(args: argparse.Namespace) -> Tuple[torch.utils.data.DataLo
             duration=args.duration,
             image_size=args.image_size,
             max_samples_per_class=max_samples,
-            use_face_detection=use_face_det,
-            temporal_dropout=temp_dropout,
-            augment_strength=aug_strength
+            merge_3class=True
         )
         
         val_data = DAiSEEDataset(
@@ -212,7 +209,8 @@ def build_dataloaders(args: argparse.Namespace) -> Tuple[torch.utils.data.DataLo
             mode='val',
             num_segments=args.num_segments,
             duration=args.duration,
-            image_size=args.image_size
+            image_size=args.image_size,
+            merge_3class=True
         )
         
         test_data = DAiSEEDataset(
@@ -221,20 +219,24 @@ def build_dataloaders(args: argparse.Namespace) -> Tuple[torch.utils.data.DataLo
             mode='test',
             num_segments=args.num_segments,
             duration=args.duration,
-            image_size=args.image_size
+            image_size=args.image_size,
+            merge_3class=True
         )
         
         sampler = None
         shuffle = True
         if args.use_weighted_sampler:
-            print("=> Using WeightedRandomSampler for DAiSEE.")
+            print("=> Using WeightedRandomSampler for DAiSEE (sqrt-frequency).")
             targets = [s[1] for s in train_data.samples]
             class_counts = torch.tensor([targets.count(i) for i in range(num_classes)])
             class_counts = torch.where(class_counts == 0, torch.ones_like(class_counts), class_counts)
-            class_weights = 1. / class_counts.float()
+            # sqrt-frequency: gentle rebalancing (Class 0 ~3x, not 10x)
+            class_weights = 1. / torch.sqrt(class_counts.float())
             sample_weights = [class_weights[t] for t in targets]
             sampler = torch.utils.data.WeightedRandomSampler(sample_weights, len(sample_weights))
             shuffle = False
+            print(f"   Class counts: {class_counts.tolist()}")
+            print(f"   Sqrt-freq weights: {[f'{w:.4f}' for w in class_weights.tolist()]}")
 
         train_loader = torch.utils.data.DataLoader(
             train_data, batch_size=args.batch_size, shuffle=shuffle, sampler=sampler,
@@ -256,10 +258,6 @@ def build_dataloaders(args: argparse.Namespace) -> Tuple[torch.utils.data.DataLo
         from dataloader.daisee_dataloader import DAiSEEDataset
         
         max_samples = getattr(args, 'max_samples_per_class', 0)
-        use_face_det = getattr(args, 'use_face_detection', False)
-        temp_dropout = getattr(args, 'temporal_dropout', 0.0)
-        aug_strength = getattr(args, 'augment_strength', 'mild')
-        face_only = getattr(args, 'face_only_mode', False)
         train_data = DAiSEEDataset(
             root_dir=args.root_dir,
             annotation_file=train_annotation_file_path,
@@ -268,13 +266,8 @@ def build_dataloaders(args: argparse.Namespace) -> Tuple[torch.utils.data.DataLo
             duration=args.duration,
             image_size=args.image_size,
             max_samples_per_class=max_samples,
-            num_engagement_levels=4,
-            use_face_detection=use_face_det,
-            temporal_dropout=temp_dropout,
-            augment_strength=aug_strength,
-            face_only_mode=face_only
+            merge_3class=False
         )
-        
         val_data = DAiSEEDataset(
             root_dir=args.root_dir,
             annotation_file=val_annotation_file_path,
@@ -282,10 +275,8 @@ def build_dataloaders(args: argparse.Namespace) -> Tuple[torch.utils.data.DataLo
             num_segments=args.num_segments,
             duration=args.duration,
             image_size=args.image_size,
-            num_engagement_levels=4,
-            face_only_mode=face_only
+            merge_3class=False
         )
-        
         test_data = DAiSEEDataset(
             root_dir=args.root_dir,
             annotation_file=test_annotation_file_path,
@@ -293,8 +284,7 @@ def build_dataloaders(args: argparse.Namespace) -> Tuple[torch.utils.data.DataLo
             num_segments=args.num_segments,
             duration=args.duration,
             image_size=args.image_size,
-            num_engagement_levels=4,
-            face_only_mode=face_only
+            merge_3class=False
         )
         
         sampler = None
@@ -323,15 +313,12 @@ def build_dataloaders(args: argparse.Namespace) -> Tuple[torch.utils.data.DataLo
         )
         print(f"Total number of training samples: {len(train_data)}")
         return train_loader, val_loader, test_loader
-
-    elif args.dataset.strip() == "DAiSEEBinary":
-        print(f"=> Using DAiSEE Binary (Not Engaged vs Engaged) dataloader...")
+        
+    elif args.dataset.strip() == "DAiSEE4LevelV2":
+        print(f"=> Using DAiSEE 4-Level V2 Engagement dataloader (Prompt v2, sqrt-freq sampler)...")
         from dataloader.daisee_dataloader import DAiSEEDataset
         
         max_samples = getattr(args, 'max_samples_per_class', 0)
-        use_face_det = getattr(args, 'use_face_detection', False)
-        temp_dropout = getattr(args, 'temporal_dropout', 0.0)
-        aug_strength = getattr(args, 'augment_strength', 'mild')
         train_data = DAiSEEDataset(
             root_dir=args.root_dir,
             annotation_file=train_annotation_file_path,
@@ -340,12 +327,8 @@ def build_dataloaders(args: argparse.Namespace) -> Tuple[torch.utils.data.DataLo
             duration=args.duration,
             image_size=args.image_size,
             max_samples_per_class=max_samples,
-            num_engagement_levels=2,
-            use_face_detection=use_face_det,
-            temporal_dropout=temp_dropout,
-            augment_strength=aug_strength
+            merge_3class=False
         )
-        
         val_data = DAiSEEDataset(
             root_dir=args.root_dir,
             annotation_file=val_annotation_file_path,
@@ -353,9 +336,8 @@ def build_dataloaders(args: argparse.Namespace) -> Tuple[torch.utils.data.DataLo
             num_segments=args.num_segments,
             duration=args.duration,
             image_size=args.image_size,
-            num_engagement_levels=2
+            merge_3class=False
         )
-        
         test_data = DAiSEEDataset(
             root_dir=args.root_dir,
             annotation_file=test_annotation_file_path,
@@ -363,20 +345,23 @@ def build_dataloaders(args: argparse.Namespace) -> Tuple[torch.utils.data.DataLo
             num_segments=args.num_segments,
             duration=args.duration,
             image_size=args.image_size,
-            num_engagement_levels=2
+            merge_3class=False
         )
         
         sampler = None
         shuffle = True
         if args.use_weighted_sampler:
-            print("=> Using WeightedRandomSampler for DAiSEEBinary.")
+            # sqrt-frequency: nhẹ nhàng hơn 1/n, tránh memorize class 0 (34 mẫu)
+            print("=> [V2] Using sqrt-frequency WeightedRandomSampler for DAiSEE4LevelV2.")
             targets = [s[1] for s in train_data.samples]
             class_counts = torch.tensor([targets.count(i) for i in range(num_classes)])
             class_counts = torch.where(class_counts == 0, torch.ones_like(class_counts), class_counts)
-            class_weights = 1. / class_counts.float()
+            class_weights = 1. / torch.sqrt(class_counts.float())  # sqrt-freq, not 1/n
             sample_weights = [class_weights[t] for t in targets]
             sampler = torch.utils.data.WeightedRandomSampler(sample_weights, len(sample_weights))
             shuffle = False
+            print(f"   Class counts: {class_counts.tolist()}")
+            print(f"   Sqrt-freq weights: {[f'{w:.4f}' for w in class_weights.tolist()]}")
 
         train_loader = torch.utils.data.DataLoader(
             train_data, batch_size=args.batch_size, shuffle=shuffle, sampler=sampler,
@@ -397,9 +382,7 @@ def build_dataloaders(args: argparse.Namespace) -> Tuple[torch.utils.data.DataLo
         print(f"=> Using DAiSEE 4-Discrete dataloader...")
         from dataloader.daisee_dataloader import DAiSEE4DiscreteDataset
         
-        use_face_det = getattr(args, 'use_face_detection', False)
-        temp_dropout = getattr(args, 'temporal_dropout', 0.0)
-        aug_strength = getattr(args, 'augment_strength', 'mild')
+        extra_files = getattr(args, 'extra_train_annotations', [])
         train_data = DAiSEE4DiscreteDataset(
             root_dir=args.root_dir,
             annotation_file=train_annotation_file_path,
@@ -407,9 +390,7 @@ def build_dataloaders(args: argparse.Namespace) -> Tuple[torch.utils.data.DataLo
             num_segments=args.num_segments,
             duration=args.duration,
             image_size=args.image_size,
-            use_face_detection=use_face_det,
-            temporal_dropout=temp_dropout,
-            augment_strength=aug_strength
+            extra_annotation_files=extra_files
         )
         val_data = DAiSEE4DiscreteDataset(
             root_dir=args.root_dir,

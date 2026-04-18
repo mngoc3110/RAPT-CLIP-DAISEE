@@ -1,4 +1,5 @@
 from torch import nn
+import torch.nn.functional as F
 from models.Temporal_Model import *
 from models.Prompt_Learner import *
 from models.Text import class_descriptor_5_only_face
@@ -6,6 +7,31 @@ from models.Adapter import Adapter
 from clip import clip
 import copy
 import itertools
+
+
+class CosineClassifier(nn.Module):
+    """τ-normalized cosine classifier — prevents mode collapse.
+    
+    Normalizes both features and class prototypes to unit sphere.
+    Output = tau * cosine_similarity(features, prototypes)
+    
+    Why this prevents collapse:
+    - All classes equidistant from origin on unit sphere
+    - Random prototypes → diverse initial predictions guaranteed
+    - Learnable tau controls confidence magnitude
+    
+    Reference: Kang et al., "Decoupling Representation and Classifier" (ICLR 2020)
+    """
+    def __init__(self, in_features, num_classes, tau_init=16.0):
+        super().__init__()
+        self.weight = nn.Parameter(torch.randn(num_classes, in_features))
+        nn.init.xavier_uniform_(self.weight)
+        self.tau = nn.Parameter(torch.tensor(float(tau_init)))
+    
+    def forward(self, x):
+        x_norm = F.normalize(x.float(), dim=-1)
+        w_norm = F.normalize(self.weight, dim=-1)
+        return self.tau * (x_norm @ w_norm.t())
 
 class GenerateModel(nn.Module):
     def __init__(self, input_text, clip_model, args):
@@ -91,6 +117,24 @@ class GenerateModel(nn.Module):
                                                      dim_head=64)
         self.clip_model_ = clip_model
         self.project_fc = nn.Linear(1024, 512)
+        
+        # Gaze MLP Fusion Branch
+        self.gaze_mlp = nn.Sequential(
+            nn.Linear(3, 128),
+            nn.LayerNorm(128),
+            nn.GELU(),
+            nn.Dropout(0.2),
+            nn.Linear(128, 512),
+            nn.LayerNorm(512)
+        )
+        self.alpha_gaze = nn.Parameter(torch.tensor(0.0))
+
+        # Cosine Classifier Head (bypasses CLIP text similarity)
+        self.use_classifier_head = getattr(args, 'use_classifier_head', False)
+        if self.use_classifier_head:
+            num_cls = self.num_classes if self.is_ensemble else len(input_text)
+            self.classifier_head = CosineClassifier(512, num_cls, tau_init=12.0)
+            print(f"=> Using COSINE CLASSIFIER ({num_cls} classes, tau_init=12.0)")
 
         # MoCo Initialization
         if hasattr(args, 'use_moco') and args.use_moco:
@@ -106,8 +150,7 @@ class GenerateModel(nn.Module):
             self.temporal_net_m = copy.deepcopy(self.temporal_net)
             self.temporal_net_body_m = copy.deepcopy(self.temporal_net_body)
             self.project_fc_m = copy.deepcopy(self.project_fc)
-            if self.face_only_mode:
-                self.body_adapter_m = copy.deepcopy(self.body_adapter)
+            self.gaze_mlp_m = copy.deepcopy(self.gaze_mlp)
 
             # Freeze momentum encoders
             for param in self.image_encoder_m.parameters(): param.requires_grad = False
@@ -115,8 +158,7 @@ class GenerateModel(nn.Module):
             for param in self.temporal_net_m.parameters(): param.requires_grad = False
             for param in self.temporal_net_body_m.parameters(): param.requires_grad = False
             for param in self.project_fc_m.parameters(): param.requires_grad = False
-            if self.face_only_mode:
-                for param in self.body_adapter_m.parameters(): param.requires_grad = False
+            for param in self.gaze_mlp_m.parameters(): param.requires_grad = False
 
             # Create queue
             self.register_buffer("queue", torch.randn(self.moco_dim, self.moco_k))
@@ -138,9 +180,8 @@ class GenerateModel(nn.Module):
             param_k.data = param_k.data * self.moco_m + param_q.data * (1. - self.moco_m)
         for param_q, param_k in zip(self.project_fc.parameters(), self.project_fc_m.parameters()):
             param_k.data = param_k.data * self.moco_m + param_q.data * (1. - self.moco_m)
-        if self.face_only_mode and hasattr(self, 'body_adapter_m'):
-            for param_q, param_k in zip(self.body_adapter.parameters(), self.body_adapter_m.parameters()):
-                param_k.data = param_k.data * self.moco_m + param_q.data * (1. - self.moco_m)
+        for param_q, param_k in zip(self.gaze_mlp.parameters(), self.gaze_mlp_m.parameters()):
+            param_k.data = param_k.data * self.moco_m + param_q.data * (1. - self.moco_m)
 
     @torch.no_grad()
     def _dequeue_and_enqueue(self, keys):
@@ -161,7 +202,7 @@ class GenerateModel(nn.Module):
         self.queue_ptr[0] = ptr
 
     @torch.no_grad()
-    def forward_momentum(self, image_face, image_body):
+    def forward_momentum(self, image_face, image_body, gaze_features=None):
         # Face Part
         n, t, c, h, w = image_face.shape
         image_face = image_face.contiguous().view(-1, c, h, w)
@@ -188,10 +229,17 @@ class GenerateModel(nn.Module):
         else:
             video_features = torch.cat((video_face_features, video_body_features), dim=-1)
         video_features = self.project_fc_m(video_features)
+        
+        # Fuse Gaze Features
+        if gaze_features is not None:
+            gaze_avg = gaze_features.mean(dim=1)
+            gaze_encoded = self.gaze_mlp_m(gaze_avg.type(self.dtype))
+            video_features = video_features + self.alpha_gaze * gaze_encoded
+            
         video_features = video_features / video_features.norm(dim=-1, keepdim=True)
         return video_features
         
-    def forward(self, image_face,image_body):
+    def forward(self, image_face, image_body, gaze_features=None):
         ################# Visual Part #################
         # Face Part
         n, t, c, h, w = image_face.shape
@@ -223,7 +271,17 @@ class GenerateModel(nn.Module):
             # Original concatenation
             video_features = torch.cat((video_face_features, video_body_features), dim=-1)
         video_features = self.project_fc(video_features)
-        # Robust normalization to avoid NaN on MPS
+        
+        # Fuse Gaze Features
+        if gaze_features is not None:
+            gaze_avg = gaze_features.mean(dim=1)
+            gaze_encoded = self.gaze_mlp(gaze_avg.type(self.dtype))
+            video_features = video_features + self.alpha_gaze * gaze_encoded
+        
+        # Keep raw features for classifier head (before L2 norm kills gradient diversity)
+        video_features_raw = video_features
+            
+        # Robust normalization to avoid NaN on MPS (for CLIP similarity path)
         video_features = video_features / (video_features.norm(dim=-1, keepdim=True) + 1e-6)
 
         ################# Text Part ###################
@@ -250,27 +308,21 @@ class GenerateModel(nn.Module):
             hand_crafted_text_features = hand_crafted_text_features / (hand_crafted_text_features.norm(dim=-1, keepdim=True) + 1e-6)
 
         ################# MoCo Updates ###################
-        moco_logits = None
+        returned_moco_features = None
         if self.training and hasattr(self.args, 'use_moco') and self.args.use_moco:
             with torch.no_grad():
                 self._momentum_update_key_encoder()
-                k_video_features = self.forward_momentum(image_face, image_body)
-            
-            # Compute MoCo Logits
-            # Positive logits: similarity between query and key
-            l_pos = torch.einsum('nc,nc->n', [video_features, k_video_features]).unsqueeze(-1)
-            # Negative logits: similarity between query and queue
-            l_neg = torch.einsum('nc,ck->nk', [video_features, self.queue.clone().detach()])
-
-            # logits: Nx(1+K)
-            moco_logits = torch.cat([l_pos, l_neg], dim=1)
-            moco_logits /= self.moco_t
+                k_video_features = self.forward_momentum(image_face, image_body, gaze_features=gaze_features)
 
             self._dequeue_and_enqueue(k_video_features)
+            # Return video_features so trainer can compute Supervised MoCoRank
+            returned_moco_features = video_features
 
         ################# Classification ###################
-        # Calculate logits
-        if self.is_ensemble:
+        if self.use_classifier_head:
+            # CosineClassifier: normalizes internally, tau scales output
+            output = self.classifier_head(video_features_raw)
+        elif self.is_ensemble:
             # Reshape text features for ensembling: (C*P, D) -> (C, P, D)
             text_features = text_features.view(self.num_classes, self.num_prompts_per_class, -1)
             # Normalize again just in case (optional but safe) - Robust version
@@ -282,8 +334,7 @@ class GenerateModel(nn.Module):
             
             # Average the logits across the prompts for each class
             output = torch.mean(logits, dim=2) / self.args.temperature
-
         else:
             output = video_features @ text_features.t() / self.args.temperature
 
-        return output, text_features, hand_crafted_text_features, moco_logits
+        return output, text_features, hand_crafted_text_features, returned_moco_features

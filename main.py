@@ -57,9 +57,10 @@ exp_group.add_argument('--seed', type=int, default=42, help='Random seed for rep
 # --- Data & Path ---
 path_group = parser.add_argument_group('Data & Path', 'Paths to datasets and pretrained models')
 path_group.add_argument('--root-dir', type=str, default='./', help='Root directory of the dataset. E.g., /kaggle/input/raer-video-emotion-dataset/RAER')
-path_group.add_argument('--train-annotation', type=str, default='RAER/annotation/train_80.txt', help='Absolute path to training annotation file. E.g., /kaggle/input/raer-annot/annotation/train_abs.txt')
-path_group.add_argument('--val-annotation', type=str, default='RAER/annotation/val_20.txt', help='Absolute path to validation annotation file. E.g., /kaggle/input/raer-annot/annotation/val_20.txt')
-path_group.add_argument('--test-annotation', type=str, default='RAER/annotation/test.txt', help='Absolute path to testing annotation file. E.g., /kaggle/input/raer-annot/annotation/test_abs.txt')
+path_group.add_argument('--train-annotation', type=str, default='RAER/annotation/train_80.txt', help='Absolute path to training annotation file.')
+path_group.add_argument('--val-annotation', type=str, default='RAER/annotation/val_20.txt', help='Absolute path to validation annotation file.')
+path_group.add_argument('--test-annotation', type=str, default='RAER/annotation/test.txt', help='Absolute path to testing annotation file.')
+path_group.add_argument('--extra-train-annotations', type=str, nargs='*', default=[], help='Extra annotation CSVs to merge into training set (e.g., val CSV).')
 path_group.add_argument('--clip-path', type=str, default='ViT-B/16', help='Path to the pretrained CLIP model.')
 path_group.add_argument('--bounding-box-face', type=str, default='RAER/bounding_box/face.json', help='Absolute path to face bounding box JSON. E.g., /kaggle/input/raer-annot/annotation/bounding_box/face_abs.json')
 path_group.add_argument('--bounding-box-body', type=str, default='RAER/bounding_box/body.json', help='Absolute path to body bounding box JSON. E.g., /kaggle/input/raer-annot/annotation/bounding_box/body_abs.json')
@@ -90,6 +91,7 @@ optim_group.add_argument('--ema-decay', type=float, default=0.999, help='EMA dec
 optim_group.add_argument('--ema-start-epoch', type=int, default=3, help='Epoch to start applying EMA to validation (0=immediately). Delay prevents collapse when EMA≈init.')
 optim_group.add_argument('--use-random-erasing', action='store_true', help='Use RandomErasing augmentation on body branch.')
 optim_group.add_argument('--early-stop', type=int, default=0, help='Early stopping patience (0=disabled). Stop if val WAR not improved for N epochs.')
+optim_group.add_argument('--no-tta', action='store_true', help='Disable TTA validation every epoch to speed up training.')
 
 # --- Loss & Imbalance Handling ---
 loss_group = parser.add_argument_group('Loss & Imbalance Handling', 'Parameters for loss functions and imbalance handling')
@@ -111,6 +113,7 @@ loss_group.add_argument('--mixup-alpha', type=float, default=0.2, help='Alpha va
 # NEW LDAM ARGS
 loss_group.add_argument('--ldam-max-m', type=float, default=0.5, help='Max margin for LDAM Loss.')
 loss_group.add_argument('--ldam-s', type=float, default=30.0, help='Scaling factor for LDAM Loss.')
+loss_group.add_argument('--drw-start-epoch', type=int, default=5, help='Epoch to switch Focal Loss from Phase1 (no weights) to Phase2 (class weights). Default 5.')
 
 # --- Model & Input ---
 model_group = parser.add_argument_group('Model & Input', 'Parameters for model architecture and data handling')
@@ -133,6 +136,7 @@ model_group.add_argument('--use-moco', action='store_true', help='Use MoCoRank f
 model_group.add_argument('--moco-k', type=int, default=4096, help='Queue size for MoCo.')
 model_group.add_argument('--moco-m', type=float, default=0.99, help='Momentum for MoCo.')
 model_group.add_argument('--moco-t', type=float, default=0.07, help='Temperature for MoCo.')
+model_group.add_argument('--use-classifier-head', action='store_true', help='Use linear classifier head instead of CLIP text-image similarity for classification. Essential for ordinal tasks like DAiSEE.')
 
 # ==================== Helper Functions ====================
 def setup_environment(args: argparse.Namespace) -> argparse.Namespace:
@@ -260,17 +264,23 @@ def run_training(args: argparse.Namespace) -> None:
         print(f"=> Using SemanticLDLLoss (LDL) with temperature {args.ldl_temperature}")
         criterion = SemanticLDLLoss(temperature=args.ldl_temperature).to(args.device)
     elif args.loss_type == 'focal':
-        # Compute class weights from distribution
-        if sum(cls_num_list) > 0:
-            total = sum(cls_num_list)
-            cls_weights = torch.FloatTensor([total / (len(cls_num_list) * c + 1e-6) for c in cls_num_list])
-            cls_weights = cls_weights / cls_weights.sum() * len(cls_num_list)  # Normalize
-        else:
-            cls_weights = None
         gamma = getattr(args, 'focal_gamma', 2.0)
-        print(f"=> Using Focal Loss with gamma={gamma}, weights={cls_weights}")
-        criterion = FocalLoss(gamma=gamma, weight=cls_weights.to(args.device) if cls_weights is not None else None,
+        
+        # DRW Phase 1: No class weights (learn clean features)
+        print(f"=> [DRW Phase 1] Focal Loss gamma={gamma}, NO class weights")
+        criterion = FocalLoss(gamma=gamma, weight=None,
                               label_smoothing=args.label_smoothing).to(args.device)
+        
+        # DRW Phase 2: Prepare weighted criterion for later activation
+        drw_criterion_phase2 = None
+        drw_start_epoch = getattr(args, 'drw_start_epoch', 5)  # Configurable via --drw-start-epoch
+        if cls_num_list and sum(cls_num_list) > 0:
+            max_count = max(cls_num_list)
+            # Boost-only weights: capped at 5.0 (proven diverse in v13)
+            cls_weights = torch.FloatTensor([min(5.0, max(1.0, max_count / (c + 1e-6))) for c in cls_num_list])
+            print(f"=> [DRW Phase 2 prepared] Will activate at epoch {drw_start_epoch} with weights: [{', '.join([f'{w:.2f}' for w in cls_weights.tolist()])}]")
+            drw_criterion_phase2 = FocalLoss(gamma=gamma, weight=cls_weights.to(args.device),
+                                              label_smoothing=args.label_smoothing).to(args.device)
     elif args.loss_type == 'ldam':
         if sum(cls_num_list) > 0:
             print(f"=> Using LDAM Loss with s={args.ldam_s}, max_m={args.ldam_max_m}")
@@ -281,8 +291,17 @@ def run_training(args: argparse.Namespace) -> None:
     elif args.loss_type == 'ordinal_ce':
         from utils.loss import OrdinalCELoss
         num_classes = len(cls_num_list) if cls_num_list else 3
+        
+        # Calculate class weights: boost minority WITHOUT suppressing majority
+        cls_weights = None
+        if cls_num_list and sum(cls_num_list) > 0:
+            max_count = max(cls_num_list)
+            # Weight = max_count / class_count, clamped to [1.0, 5.0]
+            cls_weights = torch.FloatTensor([min(5.0, max(1.0, max_count / (c + 1e-6))) for c in cls_num_list])
+            print(f"=> Computed OrdinalCELoss Class Weights: [{', '.join([f'{w:.3f}' for w in cls_weights.tolist()])}]")
+            
         print(f"=> Using Ordinal CE Loss (sigma=0.5, {num_classes} classes)")
-        criterion = OrdinalCELoss(num_classes=num_classes, sigma=0.5).to(args.device)
+        criterion = OrdinalCELoss(num_classes=num_classes, sigma=0.5, weight=cls_weights).to(args.device)
     elif args.loss_type == 'coral':
         from utils.loss import CORALLoss
         num_classes = len(cls_num_list) if cls_num_list else 3
@@ -311,14 +330,12 @@ def run_training(args: argparse.Namespace) -> None:
         {"params": model.project_fc.parameters(), "lr": args.lr},
         {"params": model.face_adapter.parameters(), "lr": args.lr_adapter}
     ]
-    # Face-only mode: add body_adapter and face_gate to optimizer
-    if getattr(args, 'face_only_mode', False):
-        optimizer_grouped_parameters.append(
-            {"params": model.body_adapter.parameters(), "lr": args.lr_adapter}
-        )
-        optimizer_grouped_parameters.append(
-            {"params": [model.face_gate], "lr": args.lr}
-        )
+    if hasattr(model, 'gaze_mlp'):
+        optimizer_grouped_parameters.append({"params": model.gaze_mlp.parameters(), "lr": args.lr_adapter})
+    if hasattr(model, 'alpha_gaze'):
+        optimizer_grouped_parameters.append({"params": [model.alpha_gaze], "lr": args.lr_adapter})
+    if hasattr(model, 'classifier_head'):
+        optimizer_grouped_parameters.append({"params": model.classifier_head.parameters(), "lr": args.lr})
 
     if args.optimizer == 'SGD':
         optimizer = torch.optim.SGD(optimizer_grouped_parameters, momentum=args.momentum, weight_decay=args.weight_decay)
@@ -401,6 +418,12 @@ def run_training(args: argparse.Namespace) -> None:
             f.write(log_msg + '\n')
         print(log_msg)
 
+        # DRW (Deferred Re-Weighting): Switch criterion at drw_start_epoch
+        if args.loss_type == 'focal' and 'drw_criterion_phase2' in dir() and drw_criterion_phase2 is not None:
+            if epoch == drw_start_epoch:
+                print(f"=> [DRW] Switching to Phase 2: Focal Loss WITH class weights at epoch {epoch}")
+                trainer.criterion = drw_criterion_phase2
+
         # Train & Validate
         train_war, train_uar, train_los, train_cm = trainer.train_epoch(train_loader, epoch)
 
@@ -421,17 +444,19 @@ def run_training(args: argparse.Namespace) -> None:
         if ema is not None and epoch >= ema_start_epoch:
             ema.restore(model)
 
-        # TTA validation (flip averaging)
-        if ema is not None and epoch >= ema_start_epoch:
-            ema.apply(model)
-        tta_war, tta_uar, _, tta_cm = trainer.validate_with_tta(val_loader, str(epoch))
-        if ema is not None and epoch >= ema_start_epoch:
-            ema.restore(model)
-        
-        # Use the better WAR (regular vs TTA)
-        if tta_war > val_war:
-            val_war, val_uar, val_cm = tta_war, tta_uar, tta_cm
-            print(f"[TTA] Using TTA result: WAR {tta_war:.2f}% > regular")
+        if not getattr(args, 'no_tta', False):
+            # TTA validation (flip averaging)
+            if ema is not None and epoch >= ema_start_epoch:
+                ema.apply(model)
+            tta_war, tta_uar, _, tta_cm = trainer.validate_with_tta(val_loader, str(epoch))
+            if ema is not None and epoch >= ema_start_epoch:
+                ema.restore(model)
+            
+            # Use the better WAR (regular vs TTA)
+            if tta_war > val_war:
+                val_war, val_uar, val_cm = tta_war, tta_uar, tta_cm
+                print(f"[TTA] Using TTA result: WAR {tta_war:.2f}% > regular")
+
 
         trainer.scheduler.step()
 
@@ -475,6 +500,18 @@ def run_training(args: argparse.Namespace) -> None:
         print(log_msg)
         with open(log_txt_path, 'a') as f:
             f.write(log_msg + '\n\n')
+
+        # Log learnable parameters for debugging
+        extra = []
+        if hasattr(model, 'classifier_head') and hasattr(model.classifier_head, 'tau'):
+            extra.append(f'tau={model.classifier_head.tau.item():.2f}')
+        if hasattr(model, 'alpha_gaze'):
+            extra.append(f'alpha_gaze={model.alpha_gaze.item():.4f}')
+        if extra:
+            info = '  Learnable params: ' + ' | '.join(extra)
+            print(info)
+            with open(log_txt_path, 'a') as f:
+                f.write(info + '\n')
 
         # Early stopping check
         if args.early_stop > 0:

@@ -133,7 +133,14 @@ class Trainer:
         pbar = tqdm(loader, desc=f"{mode_str} Epoch {epoch_str}", file=sys.stdout)
         
         with context:
-            for i, (images_face, images_body, target) in enumerate(pbar):
+            for i, batch_data in enumerate(pbar):
+                if len(batch_data) == 4:
+                    images_face, images_body, gaze_features, target = batch_data
+                    gaze_features = gaze_features.to(self.device)
+                else:
+                    images_face, images_body, target = batch_data
+                    gaze_features = None
+
                 # DEBUG: Check for NaN in inputs
                 if torch.isnan(images_face).any() or torch.isinf(images_face).any():
                     print(f"\n[CRITICAL ERROR] NaN/Inf detected in images_face at batch {i}!")
@@ -149,7 +156,7 @@ class Trainer:
 
                 with torch.amp.autocast(device_type='cuda' if torch.cuda.is_available() else 'cpu', enabled=self.use_amp):
                     # Forward pass
-                    output, learnable_text_features, hand_crafted_text_features, moco_logits = self.model(images_face, images_body)
+                    output, learnable_text_features, hand_crafted_text_features, moco_logits = self.model(images_face, images_body, gaze_features=gaze_features)
                     
                     # DEBUG: Check model output for NaN
                     if torch.isnan(output).any():
@@ -218,8 +225,10 @@ class Trainer:
                         dc_losses.update(dc_loss.item(), target.size(0))
 
                     if is_train and moco_logits is not None:
-                         moco_target = torch.zeros(moco_logits.size(0), dtype=torch.long).to(self.device)
-                         moco_loss = torch.nn.CrossEntropyLoss()(moco_logits, moco_target)
+                         # Here moco_logits is actually returned_moco_features (video_features)
+                         from utils.loss import MoCoRankLoss
+                         moco_loss_fn = MoCoRankLoss(temperature=getattr(self.model.args, 'moco_t', 0.07)).to(self.device)
+                         moco_loss = moco_loss_fn(moco_logits, processed_learnable_text_features, target, self.model.queue.detach())
                          loss += moco_loss
                          moco_losses.update(moco_loss.item(), target.size(0))
 
@@ -254,14 +263,16 @@ class Trainer:
                 all_preds_list.append(preds.cpu())
                 all_targets_list.append(target.cpu())
 
-                if not is_train and saved_images_count < 32:
+                # Save images for debugging
+                if (not is_train and saved_images_count < 32) or (is_train and int(epoch_str) == 0 and i == 0):
                     for img_idx in range(images_face.size(0)):
-                        if saved_images_count < 32:
+                        if saved_images_count < 64:
+                            pred_val = preds[img_idx].item() if not is_train else -1
                             self._save_debug_image(
                                 images_face[img_idx].cpu(),
-                                preds[img_idx].item(),
+                                pred_val,
                                 target[img_idx].item(),
-                                epoch_str,
+                                epoch_str if not is_train else "train_0",
                                 i,
                                 img_idx
                             )
@@ -326,18 +337,26 @@ class Trainer:
         all_targets = []
         
         with torch.no_grad():
-            for images_face, images_body, target in tqdm(val_loader, desc=f"TTA Epoch {epoch_num_str}"):
+            for batch_data in tqdm(val_loader, desc=f"TTA Epoch {epoch_num_str}"):
+                if len(batch_data) == 4:
+                    images_face, images_body, gaze_features, target = batch_data
+                    gaze_features = gaze_features.to(self.device)
+                else:
+                    images_face, images_body, target = batch_data
+                    gaze_features = None
+                    
                 images_face = images_face.to(self.device)
                 images_body = images_body.to(self.device)
                 target = target.to(self.device)
                 
                 with torch.amp.autocast(device_type='cuda' if torch.cuda.is_available() else 'cpu', enabled=self.use_amp):
                     # Original
-                    output_orig, _, _, _ = self.model(images_face, images_body)
+                    output_orig, _, _, _ = self.model(images_face, images_body, gaze_features=gaze_features)
                     # Horizontal flip
                     output_flip, _, _, _ = self.model(
                         torch.flip(images_face, dims=[-1]),
-                        torch.flip(images_body, dims=[-1])
+                        torch.flip(images_body, dims=[-1]),
+                        gaze_features=gaze_features
                     )
                 
                 all_logits_orig.append(output_orig.cpu())

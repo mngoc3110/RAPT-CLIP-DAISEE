@@ -215,9 +215,10 @@ class OrdinalCELoss(nn.Module):
     - Nearby classes get more probability mass than distant ones
     - Sigma controls how much mass leaks to neighbors (lower = sharper)
     """
-    def __init__(self, num_classes=3, sigma=1.0):
+    def __init__(self, num_classes=3, sigma=1.0, weight=None):
         super(OrdinalCELoss, self).__init__()
         self.num_classes = num_classes
+        self.weight = weight
         # Pre-compute soft label matrix using Gaussian kernel
         # soft_labels[i][j] = exp(-|i-j|^2 / (2*sigma^2))
         soft_labels = torch.zeros(num_classes, num_classes)
@@ -237,8 +238,14 @@ class OrdinalCELoss(nn.Module):
         
         # KL divergence with soft targets
         log_probs = F.log_softmax(logits, dim=1)
-        loss = (-soft_targets * log_probs).sum(dim=1).mean()
-        return loss
+        loss = (-soft_targets * log_probs).sum(dim=1)  # (B,)
+        
+        # Apply class weights if provided
+        if self.weight is not None:
+            w = self.weight.to(device)[targets]
+            loss = loss * w
+            
+        return loss.mean()
 
 
 class CORALLoss(nn.Module):
