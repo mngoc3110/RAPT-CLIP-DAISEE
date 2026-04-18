@@ -262,7 +262,15 @@ def build_dataloaders(args: argparse.Namespace) -> Tuple[torch.utils.data.DataLo
         full_merge = getattr(args, 'full_train_merge', False)
         
         # Merge Train and Val if requested
-        extra_train_files = [val_annotation_file_path] if full_merge else []
+        if full_merge:
+            # Explicitly derive ValidationLabels.csv from the same directory as TrainLabels.csv
+            ann_dir = os.path.dirname(train_annotation_file_path)
+            val_csv_for_merge = os.path.join(ann_dir, 'ValidationLabels.csv')
+            extra_train_files = [val_csv_for_merge]
+            print(f"=> [FULL MERGE] Adding Val to Train: {val_csv_for_merge}")
+            print(f"=> [FULL MERGE] Using Test as Val: {test_annotation_file_path}")
+        else:
+            extra_train_files = []
         
         train_data = DAiSEEDataset(
             root_dir=args.root_dir,
